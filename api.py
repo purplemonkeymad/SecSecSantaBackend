@@ -50,7 +50,7 @@ def game():
         get_code = request.args.get('code')
         if not get_code:
             return json_error('Property code is missing or empty.')
-        query = "SELECT name,status FROM {} WHERE code = %(code)s".format(true_tablename('games'))
+        query = "SELECT name,state FROM {} WHERE code = %(code)s".format(true_tablename('games'))
         dbCursor.execute(query, {'code': get_code} )
         try:
             db_game = dbCursor.fetchone()
