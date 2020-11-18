@@ -17,6 +17,16 @@ dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
 
 # helper functions
 
+# get true table name
+
+def true_tablename(tablename):
+    if os.environ.get('IS_PROD',0):
+        table_prefix = "prod"
+    else:
+        table_prefix = "dev"
+    realm_name = "santa"
+    return "{}_{}_{}".format(table_prefix,realm_name,tablename)
+
 # wrapper for sending error messages
 def json_error(message):
     result = {
@@ -39,7 +49,16 @@ def game():
     if request.method == 'GET':
         get_code = request.args.get('code')
         if not get_code:
-            return json_error('Property code is missing or empty.') 
+            return json_error('Property code is missing or empty.')
+        query = "SELECT name,status FROM {} WHERE code = %(code)s".format(true_tablename('games'))
+        dbCursor.execute(query, {'code': get_code} )
+        try:
+            db_game = dbCursor.fetchone()
+        except:
+            return json_error("Error fetching games")
+        else:
+            return db_game
+        
     return 'hello'
 # For dev local runs, start flask in python process.
 
