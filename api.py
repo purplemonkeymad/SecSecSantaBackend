@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 urllib.parse.uses_netloc.append('postgres')
 # heroku puts db info in this env
-url = urllib.parse.urlparse(os.environ('DATABASE_URL'))
+url = urllib.parse.urlparse(os.environ['DATABASE_URL'])
 dbConn = psycopg2.connect( database=url.path[1:], user=url.username, password=url.password, host=url.hostname, port=url.port)
 dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
 
@@ -31,7 +31,6 @@ def json_error(message):
 # retrive the status of a game or set a status
 # GET /game?name=<name>
 #   Return details of the named game or an error mesage if it does not exist.
-
 # POST /game
 #    {name: <name>,secret: <key>,status: <0-3>}
 #    Sets the game <name> to selected status, uses the secret to authenticate.
