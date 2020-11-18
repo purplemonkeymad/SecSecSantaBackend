@@ -1,2 +1,4 @@
 localvenv
 __pycache__
+.envrc
+.vscode/launch.json
