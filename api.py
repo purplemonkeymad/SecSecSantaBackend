@@ -35,6 +35,11 @@ def json_error(message):
     }
     return json.dumps(result)
 
+# return data with success code
+def json_ok(data_dict):
+    data_dict['status'] = 'ok'
+    return json.dumps(data_dict)
+
 # endpoints
 
 # /game  :
@@ -46,20 +51,41 @@ def json_error(message):
 #    Sets the game <name> to selected status, uses the secret to authenticate.
 @app.route('/game', methods=['GET','POST'])
 def game():
+    # get for getting info about game
     if request.method == 'GET':
         get_code = request.args.get('code')
         if not get_code:
             return json_error('Property code is missing or empty.')
         query = "SELECT name,state FROM {} WHERE code = %(code)s".format(true_tablename('games'))
         dbCursor.execute(query, {'code': get_code} )
+        if dbCursor.rowcount == 0:
+            return json_error("Not Found")
         try:
             db_game = dbCursor.fetchone()
         except:
             return json_error("Error fetching games")
         else:
-            return db_game
-        
-    return 'hello'
+            return json_ok(db_game)
+    # post to update a game status.
+    if request.method == 'POST':
+        post_data = request.get_json(force=True)
+        if len(post_data) == 0:
+            return json_error("No Data sent in request")
+        try:
+            if 'state' in post_data:
+                query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s".format(true_tablename('games'))
+                dbCursor.execute(query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
+                if dbCursor.rowcount == 0:
+                    return json_error("not found")
+                else:
+                    dbConn.commit()
+                    return json_ok( {} )
+        except KeyError as e:
+            return json_error("missing key: {}".format(e.args[0]))
+        return post_data
+    
+    # we shouldn't get here, but return a message just incase we do
+    return json_error("No sure what to do")
 # For dev local runs, start flask in python process.
 
 if __name__ == '__main__':
