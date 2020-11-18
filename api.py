@@ -1,9 +1,18 @@
 import os
+import json
 from flask import Flask, request
 
 app = Flask(__name__)
 
 # helper functions
+
+# wrapper for sending error messages
+def json_error(message):
+    result = {
+        "status": 'Error',
+        "statusdetail": message
+    }
+    return json.dumps(result)
 
 # endpoints
 
@@ -17,6 +26,10 @@ app = Flask(__name__)
 #    Sets the game <name> to selected status, uses the secret to authenticate.
 @app.route('/game', methods=['GET','POST'])
 def game():
+    if request.method == 'GET':
+        get_code = request.args.get('code')
+        if not get_code:
+            return json_error('Property code is missing or empty.') 
     return 'hello'
 # For dev local runs, start flask in python process.
 
