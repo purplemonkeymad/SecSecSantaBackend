@@ -1,8 +1,19 @@
 import os
 import json
 from flask import Flask, request
+import urllib.parse
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
+
+# db setup
+
+urllib.parse.uses_netloc.append('postgres')
+# heroku puts db info in this env
+url = urllib.parse.urlparse(os.environ('DATABASE_URL'))
+dbConn = psycopg2.connect( database=url.path[1:], user=url.username, password=url.password, host=url.hostname, port=url.port)
+dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
 
 # helper functions
 
