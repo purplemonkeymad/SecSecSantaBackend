@@ -1,9 +1,15 @@
 import os
+# for REST like api
 import json
+# flask to provide http layer
 from flask import Flask, request
+# database
 import urllib.parse
 import psycopg2
 from psycopg2.extras import RealDictCursor
+# cheap keygen
+import string
+import random
 
 app = Flask(__name__)
 
@@ -17,8 +23,13 @@ dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
 
 # helper functions
 
-# get true table name
+# keygen for secrets
+password_pool = list( string.ascii_letters + string.digits )
+def new_password(length=8):
+    temp_pass = random.choices(password_pool,k=length)
+    return ''.join(temp_pass)
 
+# get true table name
 def true_tablename(tablename):
     if os.environ.get('IS_PROD',0):
         table_prefix = "prod"
@@ -56,7 +67,7 @@ def game():
         get_code = request.args.get('code')
         if not get_code:
             return json_error('Property code is missing or empty.')
-        query = "SELECT name,state FROM {} WHERE code = %(code)s".format(true_tablename('games'))
+        query = "SELECT name,state FROM {} WHERE code = %(code)s;".format(true_tablename('games'))
         dbCursor.execute(query, {'code': get_code} )
         if dbCursor.rowcount == 0:
             return json_error("Not Found")
@@ -73,7 +84,7 @@ def game():
             return json_error("No Data sent in request")
         try:
             if 'state' in post_data:
-                query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s".format(true_tablename('games'))
+                query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
                 dbCursor.execute(query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
                 if dbCursor.rowcount == 0:
                     dbConn.cancel()
@@ -89,6 +100,36 @@ def game():
     return json_error("No sure what to do")
 
 # admin endpoints
+
+@app.route('/new', methods=['POST'])
+def new():
+    try:
+        post_data = request.get_json(force=True)
+        if 'name' in post_data:
+            # sql statements
+            check_query = "SELECT name FROM {} Where code=%(pubkey)s;".format(true_tablename('games'))
+            insert_query = "INSERT INTO {} VALUES(DEFAULT,%(name)s,%(privkey)s,%(pubkey)s,0);".format(true_tablename('games'))
+            # generate keys
+            pubkey = new_password(length=8)
+            privkey = new_password(length=64)
+            game_sig = {'name': post_data['name'], 'privkey': privkey, 'pubkey': pubkey}
+
+            try:
+                dbCursor.execute(check_query,  { 'pubkey': pubkey} )
+                if dbCursor.rowcount == 0:
+                    dbCursor.execute(insert_query,  game_sig)
+                    dbConn.commit()
+                    return json_ok( game_sig )
+                else:
+                    return json_error( "Unable to generate unique game, try again." )
+            except Exception as e:
+                print("sql error on /new: {}".format(e))
+                return json_error("An internal error occurred.")
+        else:
+            # no name in data
+            return json_error( "'name' is a required value." )
+    except:
+        return json_error("POST data was not json or malformed.")
 
 # reset/create db
 # resets the databases, it's important that you keep the globalsecret safe and long.
