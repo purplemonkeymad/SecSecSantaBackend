@@ -76,6 +76,7 @@ def game():
                 query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s".format(true_tablename('games'))
                 dbCursor.execute(query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
                 if dbCursor.rowcount == 0:
+                    dbConn.cancel()
                     return json_error("not found")
                 else:
                     dbConn.commit()
