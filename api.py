@@ -51,6 +51,9 @@ def json_ok(data_dict):
     data_dict['status'] = 'ok'
     return json.dumps(data_dict)
 
+def run_game(code):
+    raise NotImplementedError('run_game')
+
 # endpoints
 
 # /game  :
@@ -84,14 +87,40 @@ def game():
             return json_error("No Data sent in request")
         try:
             if 'state' in post_data:
+                # states 0 = open; 1 = run; 2 = closed
+                get_query = "SELECT state,code,id FROM {games} WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
+                try:
+                    dbCursor.execute(get_query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
+                    if dbCursor.rowcount == 0:
+                        dbConn.cancel()
+                        return json_error("not found")
+                    current_state = dbCursor
+                except:
+                    return json_error("failed to get game")
+
+                new_state = post_data['state']
+
+                # set to open
+                if post_data['state'] == 0:
+                    if current_state['state'] != 0:
+                        return json_error("Cannot re-open a game, create a new one.")
+                # set to run
+                if post_data['state'] == 1:
+                    if current_state['state'] != 0:
+                        return json_error("Can only run open games.")
+                    else:
+                        run_game(current_state['id'])
+                # set to closed
+                # no error to throw atm
+
                 query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
-                dbCursor.execute(query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
+                dbCursor.execute(query, {'state': new_state, 'code': post_data['code'], 'secret': post_data['secret']} )
                 if dbCursor.rowcount == 0:
                     dbConn.cancel()
-                    return json_error("not found")
+                    return json_error("not updated")
                 else:
                     dbConn.commit()
-                    return json_ok( {} )
+                    return json_ok( {'state':new_state} )
         except KeyError as e:
             return json_error("missing key: {}".format(e.args[0]))
         return post_data
