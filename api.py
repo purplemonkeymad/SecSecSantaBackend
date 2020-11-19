@@ -100,7 +100,9 @@ def game():
     return json_error("No sure what to do")
 
 # submit ideas
-
+# submit ideas for a game to allow for the draw.
+# POST
+#    {"code":<gamepubcode>,"idea":<ideatext>}
 @app.route('/idea', methods=['POST'])
 def idea():
     try:
