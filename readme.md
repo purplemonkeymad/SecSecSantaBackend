@@ -55,9 +55,9 @@ Body: `{"name":"Game Display Name"}`
 Call this endpoint to create a new game that people can submit ideas to and join.
 
 Result:
-    name: Display Name of group
-    privkey: A Secret key to managed the group (keep this to yourself)
-    pubkey: A short key to share with people to join the group, they use this to submit ideas, register, and to get their results.
+* name: Display Name of group
+* privkey: A Secret key to managed the group (keep this to yourself)
+* pubkey: A short key to share with people to join the group, they use this to submit ideas, register, and to get their results.
 
 ### register a user for a game
 
@@ -68,7 +68,7 @@ Body: `{"name":"Someone's Name", "code": "<pubkey>"}`
 Call this endpoint to register yourself as a person in the secret santa pool. Make sure you keep your name, as it is also your retrieval key.
 
 Result:
-    None status only.
+* None status only.
 
 ### submit an gift idea
 
@@ -79,7 +79,7 @@ Body: `{"idea":"Your idea text","code": "<pubkey>"}`
 Call this endpoint to add a new gift idea to the pool of ideas for each santa.
 
 Result:
-    None status only.
+* None status only.
 
 ### do the draw
 
@@ -94,4 +94,4 @@ Moving to state 2 will close the group and remove and ideas and users. You will 
 All actions need the privkey that was sent as the results of calling `/new` if you don't have it you can't admin the game.
 
 Result:
-    TBD
+* TBD
