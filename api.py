@@ -128,6 +128,50 @@ def idea():
 
     except:
         return json_error("POST data was not json or malformed.")
+
+# user register and game results
+@app.route('/user',methods=['POST','GET'])
+def user():
+    # post is considered registering for a game
+    if request.method == 'POST':
+        try:
+            post_data = request.get_json(force=True)
+            if all (property in post_data for property in ('name','code')):
+                # in code check, let me know if you know a way to do it in sql.
+                check_query = """SELECT {users}.name,code FROM {users} 
+                INNER JOIN {games} ON {users}.game={games}.id 
+                WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
+                try:
+                    dbCursor.execute(check_query,{'name':post_data['name'],'code':post_data['code']})
+                    if not dbCursor.rowcount == 0:
+                        return json_error("Already Registered, try another name.")
+                    else:
+                        register_query = """INSERT INTO {users}(game,name)
+                        SELECT {games}.id,%(name)s
+                        FROM {games}
+                        WHERE {games}.code = %(code)s AND
+                        NOT EXISTS (Select {users}.name,code FROM {users} INNER JOIN {games} ON {users}.game={games}.id WHERE {users}.name = %(name)s AND {games}.code = %(code)s);
+                        """.format(games=true_tablename('games'),users=true_tablename('users'))
+                        dbCursor.execute(register_query, {'name':post_data['name'], 'code':post_data['code']})
+                        dbConn.commit()
+                        if dbCursor.rowcount == 0:
+                            return json_error("Game not found")
+                        else:
+                            return json_ok ({})
+                except Exception as e:
+                    print("check user error: {}".format(e))
+                    dbConn.cancel()
+                    return json_error("Internal error occured")
+            else:
+                return json_error("name and code is required to register")
+        except:
+            return json_error("POST data was not json or malformed.")
+    # get considerted getting your results
+    if request.method == 'GET':
+        return json_error("Not implemented")
+    # we shouldn't get here, but return a message just incase we do
+    return json_error("No sure what to do")
+
 # admin endpoints
 
 # create a new group/game
