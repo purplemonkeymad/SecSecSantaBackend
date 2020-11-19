@@ -86,8 +86,40 @@ def game():
     
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
-# For dev local runs, start flask in python process.
 
+# admin endpoints
+
+# reset/create db
+@app.route('/reset', methods=['POST'])
+def reset():
+    # clear and create a new db set
+    try:
+        post_data = request.get_json(force=True)
+        if 'admin_key' in post_data:
+            if post_data['admin_key'] == os.environ['AdminSecret']:
+                drop_list = [
+                    'drop table {};'.format(true_tablename('games'))
+                ]
+                create_list = [
+                    'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games'))
+                ]
+                for query in drop_list:
+                    dbCursor.execute(query)
+                for query in create_list:
+                    dbCursor.execute(query)
+                dbConn.commit()
+                return json_ok( {} )
+            else:
+                return json_error("")
+        else:
+            return json_error("")
+    except:
+        return json_error("")
+    # due to the nature of the interface no error messages are currently returned.
+    return json_error("Not Implemented")
+
+
+# For dev local runs, start flask in python process.
 if __name__ == '__main__':
     port = int(os.environ.get('PORT',5000))
     app.run(host='0.0.0.0', port=port)
