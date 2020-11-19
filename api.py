@@ -99,6 +99,33 @@ def game():
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
 
+# submit ideas
+
+@app.route('/idea', methods=['POST'])
+def idea():
+    try:
+        post_data = request.get_json(force=True)
+        required_field = ['code','idea']
+        if all(property in post_data for property in required_field):
+            # check game exists
+            insert_query = """INSERT into {ideas}(game,idea) 
+            SELECT {games}.id,%(idea)s 
+            FROM {games} 
+            WHERE {games}.code=%(code)s and 
+            exists(SELECT id FROM {games} WHERE {games}.code=%(code)s);""".format(ideas=true_tablename('ideas'),games=true_tablename('games'))
+            try:
+                dbCursor.execute(insert_query,{'idea': post_data['idea'], 'code': post_data['code']})
+                if dbCursor.rowcount == 0:
+                    dbConn.cancel()
+                    return json_error("Game not found.")
+                dbConn.commit()
+                return json_ok( {} )
+            except Exception as e:
+                print("Idea insert error: {}".format(e))
+                return json_error("Error adding idea")
+
+    except:
+        return json_error("POST data was not json or malformed.")
 # admin endpoints
 
 @app.route('/new', methods=['POST'])
@@ -143,10 +170,12 @@ def reset():
         if 'admin_key' in post_data:
             if post_data['admin_key'] == os.environ['AdminSecret']:
                 drop_list = [
-                    'drop table {};'.format(true_tablename('games'))
+                    'drop table IF EXISTS {};'.format(true_tablename('games')),
+                    'drop table IF EXISTS {};'.format(true_tablename('ideas'))
                 ]
                 create_list = [
-                    'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games'))
+                    'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
+                    'create table {} (id serial,game int,idea varchar(260));'.format(true_tablename('ideas'))
                 ]
                 for query in drop_list:
                     dbCursor.execute(query)
@@ -158,7 +187,8 @@ def reset():
                 return json_error("")
         else:
             return json_error("")
-    except:
+    except Exception as e:
+        print("Reset error: {}".format(e))
         return json_error("")
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
