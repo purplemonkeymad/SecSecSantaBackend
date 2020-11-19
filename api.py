@@ -171,12 +171,13 @@ def reset():
             if post_data['admin_key'] == os.environ['AdminSecret']:
                 drop_list = [
                     'drop table IF EXISTS {};'.format(true_tablename('games')),
-                    'drop table IF EXISTS {};'.format(true_tablename('ideas'))
+                    'drop table IF EXISTS {};'.format(true_tablename('ideas')),
+                    'drop table IF EXISTS {};'.format(true_tablename('users'))
                 ]
                 create_list = [
                     'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-                    'create table {} (id serial,game int,idea varchar(260));'.format(true_tablename('ideas'))
-                ]
+                    'create table {} (id serial,game int,idea varchar(260));'.format(true_tablename('ideas')),
+                    'create table {} (id serial,game int,name varchar(30));'.format(true_tablename('users'))                ]
                 for query in drop_list:
                     dbCursor.execute(query)
                 for query in create_list:
