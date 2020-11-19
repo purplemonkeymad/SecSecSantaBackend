@@ -91,6 +91,9 @@ def game():
 # admin endpoints
 
 # reset/create db
+# resets the databases, it's important that you keep the globalsecret safe and long.
+# POST
+#    {"admin_key": <globalsecret>}
 @app.route('/reset', methods=['POST'])
 def reset():
     # clear and create a new db set
