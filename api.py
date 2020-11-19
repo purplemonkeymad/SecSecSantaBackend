@@ -130,6 +130,9 @@ def idea():
         return json_error("POST data was not json or malformed.")
 # admin endpoints
 
+# create a new group/game
+# POST
+#    {"name":<gameDisplayName>}
 @app.route('/new', methods=['POST'])
 def new():
     try:
