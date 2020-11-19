@@ -51,8 +51,47 @@ def json_ok(data_dict):
     data_dict['status'] = 'ok'
     return json.dumps(data_dict)
 
-def run_game(code):
-    raise NotImplementedError('run_game')
+# check a list into n length parts
+def chunks(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i+n]
+
+def run_game(id):
+    # game has two parts, ideas, santas
+    # each user is given another user to be santa of
+    # each user is also given two unique ideas from the idea pool
+    
+    #all users
+    user_query = "SELECT id,name,game FROM {users} WHERE game = %(gameid)s;".format(users=true_tablename('users'))
+    dbCursor.execute(user_query,{'gameid':id})
+    all_users = dbCursor.fetchall()
+    if len(all_users) < 2:
+        raise RuntimeError("game requires at least 2 users to run.")
+
+    # get ideas
+    idea_query = "SELECT id,idea,game FROM {ideas} WHERE game = %(gameid)s;".format(ideas=true_tablename('ideas'))
+    dbCursor.execute(idea_query,{'gameid':id})
+    all_ideas = dbCursor.fetchall()
+    if len(all_users) < len(all_users) * 2:
+        raise RuntimeError("game requires at least 2 ideas per user")
+
+    # assing users to santa's
+    random.shuffle(all_users)
+    user_update_query = "UPDATE {users} SET santa = %(santa)s WHERE id = %(userid)s;".format(users=true_tablename('users'))
+    last_user = all_users[-1]
+    for user in all_users:
+        print(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
+        #dbCursor.execute(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
+        last_user = user
+    
+    random.shuffle(all_ideas)
+    idea_chunks = list(chunks(all_ideas,2))
+    idea_update_query = "UPDATE {ideas} SET user = %(userid)s WHERE id = %(ideaid)s;".format(ideas=true_tablename('ideas'))
+    for i in range(1, len(all_users)):
+        for j in idea_chunks[i-1]:
+            print(idea_update_query,{'userid': all_users[i+1],'ideaid':j['id'] })
+            #dbCursor.execute(idea_update_query,{'userid': all_users[i+1],'ideaid':j['id'] })
+    raise NotImplementedError("Not yet finished")
 
 # endpoints
 
@@ -87,14 +126,16 @@ def game():
             return json_error("No Data sent in request")
         try:
             if 'state' in post_data:
+                if not 'secret' in post_data:
+                    return json_error("need secret to modify game")
                 # states 0 = open; 1 = run; 2 = closed
-                get_query = "SELECT state,code,id FROM {games} WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
+                get_query = "SELECT state,code,id FROM {games} WHERE secret = %(secret)s AND code = %(code)s;".format(games=true_tablename('games'))
                 try:
                     dbCursor.execute(get_query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
                     if dbCursor.rowcount == 0:
                         dbConn.cancel()
                         return json_error("not found")
-                    current_state = dbCursor
+                    current_state = dbCursor.fetchone()
                 except:
                     return json_error("failed to get game")
 
@@ -109,7 +150,12 @@ def game():
                     if current_state['state'] != 0:
                         return json_error("Can only run open games.")
                     else:
-                        run_game(current_state['id'])
+                        try:
+                            run_game(current_state['id'])
+                        except Exception as e:
+                            new_state = current_state['state']
+                            print("Error running game: {}".format(e))
+                            return json_error("Error running game.")
                 # set to closed
                 # no error to throw atm
 
@@ -121,9 +167,10 @@ def game():
                 else:
                     dbConn.commit()
                     return json_ok( {'state':new_state} )
+            else:
+                return json_error("no update key specified")
         except KeyError as e:
             return json_error("missing key: {}".format(e.args[0]))
-        return post_data
     
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
@@ -254,8 +301,9 @@ def reset():
                 ]
                 create_list = [
                     'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-                    'create table {} (id serial,game int,idea varchar(260));'.format(true_tablename('ideas')),
-                    'create table {} (id serial,game int,name varchar(30));'.format(true_tablename('users'))                ]
+                    'create table {} (id serial,game int,idea varchar(260),user int DEFAULT -1);'.format(true_tablename('ideas')),
+                    'create table {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users'))
+                ]
                 for query in drop_list:
                     dbCursor.execute(query)
                 for query in create_list:
