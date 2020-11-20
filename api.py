@@ -81,7 +81,6 @@ def run_game(id):
     try:
         last_user = all_users[-1]
         for user in all_users:
-            print(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
             dbCursor.execute(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
             last_user = user
     except Exception as e:
@@ -90,11 +89,10 @@ def run_game(id):
 
     random.shuffle(all_ideas)
     idea_chunks = list(chunks(all_ideas,2))
-    idea_update_query = "UPDATE {ideas} SET user = %(userid)s WHERE id = %(ideaid)s;".format(ideas=true_tablename('ideas'))
+    idea_update_query = "UPDATE {ideas} SET userid = %(userid)s WHERE id = %(ideaid)s;".format(ideas=true_tablename('ideas'))
     try:
         for i in range(0, len(all_users)):
             for j in idea_chunks[i]:
-                print(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
                 dbCursor.execute(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
     except Exception as e:
         print("Gamerun: Idea update failure: {}".format(e))
@@ -312,7 +310,7 @@ def reset():
                 ]
                 create_list = [
                     'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-                    'create table {} (id serial,game int,idea varchar(260),user int DEFAULT -1);'.format(true_tablename('ideas')),
+                    'create table {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
                     'create table {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users'))
                 ]
                 for query in drop_list:
@@ -326,6 +324,7 @@ def reset():
         else:
             return json_error("")
     except Exception as e:
+        dbConn.cancel()
         print("Reset error: {}".format(e))
         return json_error("")
     # due to the nature of the interface no error messages are currently returned.
