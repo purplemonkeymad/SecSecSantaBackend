@@ -72,26 +72,36 @@ def run_game(id):
     idea_query = "SELECT id,idea,game FROM {ideas} WHERE game = %(gameid)s;".format(ideas=true_tablename('ideas'))
     dbCursor.execute(idea_query,{'gameid':id})
     all_ideas = dbCursor.fetchall()
-    if len(all_users) < len(all_users) * 2:
+    if len(all_ideas) < len(all_users) * 2:
         raise RuntimeError("game requires at least 2 ideas per user")
 
     # assing users to santa's
     random.shuffle(all_users)
     user_update_query = "UPDATE {users} SET santa = %(santa)s WHERE id = %(userid)s;".format(users=true_tablename('users'))
-    last_user = all_users[-1]
-    for user in all_users:
-        print(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
-        #dbCursor.execute(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
-        last_user = user
-    
+    try:
+        last_user = all_users[-1]
+        for user in all_users:
+            print(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
+            dbCursor.execute(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
+            last_user = user
+    except Exception as e:
+        print("Gamerun: User update failure: {}".format(e))
+        raise RuntimeError("Unable to assign santas")
+
     random.shuffle(all_ideas)
     idea_chunks = list(chunks(all_ideas,2))
     idea_update_query = "UPDATE {ideas} SET user = %(userid)s WHERE id = %(ideaid)s;".format(ideas=true_tablename('ideas'))
-    for i in range(1, len(all_users)):
-        for j in idea_chunks[i-1]:
-            print(idea_update_query,{'userid': all_users[i+1],'ideaid':j['id'] })
-            #dbCursor.execute(idea_update_query,{'userid': all_users[i+1],'ideaid':j['id'] })
-    raise NotImplementedError("Not yet finished")
+    try:
+        for i in range(0, len(all_users)):
+            for j in idea_chunks[i]:
+                print(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
+                dbCursor.execute(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
+    except Exception as e:
+        print("Gamerun: Idea update failure: {}".format(e))
+        raise RuntimeError("Unable to assign ideas")
+
+    # if we are here we should have committed all the above.
+    dbConn.commit()
 
 # endpoints
 
@@ -155,7 +165,7 @@ def game():
                         except Exception as e:
                             new_state = current_state['state']
                             print("Error running game: {}".format(e))
-                            return json_error("Error running game.")
+                            return json_error("Error running game: {}".format(e))
                 # set to closed
                 # no error to throw atm
 
