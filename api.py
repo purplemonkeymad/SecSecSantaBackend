@@ -31,7 +31,7 @@ def new_password(length=8):
 
 # get true table name
 def true_tablename(tablename):
-    if os.environ.get('IS_PROD',0):
+    if os.environ.get('IS_PROD',0) == 1:
         table_prefix = "prod"
     else:
         table_prefix = "dev"
