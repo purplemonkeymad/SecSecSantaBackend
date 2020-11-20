@@ -147,6 +147,7 @@ def game():
                         return json_error("not found")
                     current_state = dbCursor.fetchone()
                 except:
+                    dbConn.cancel()
                     return json_error("failed to get game")
 
                 new_state = post_data['state']
