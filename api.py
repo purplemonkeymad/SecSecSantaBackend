@@ -101,6 +101,22 @@ def run_game(id):
     # if we are here we should have committed all the above.
     dbConn.commit()
 
+# get game info from the code.
+def get_game(code):
+    get_code = code
+    if not get_code:
+        raise RuntimeError('Property code is missing or empty.')
+    query = "SELECT name,state,id FROM {} WHERE code = %(code)s;".format(true_tablename('games'))
+    dbCursor.execute(query, {'code': get_code} )
+    if dbCursor.rowcount == 0:
+        raise RuntimeError("Not Found")
+    try:
+        db_game = dbCursor.fetchone()
+    except:
+        raise RuntimeError("Error fetching games")
+    else:
+        return db_game
+
 # endpoints
 
 # /game  :
@@ -114,19 +130,13 @@ def run_game(id):
 def game():
     # get for getting info about game
     if request.method == 'GET':
-        get_code = request.args.get('code')
-        if not get_code:
-            return json_error('Property code is missing or empty.')
-        query = "SELECT name,state FROM {} WHERE code = %(code)s;".format(true_tablename('games'))
-        dbCursor.execute(query, {'code': get_code} )
-        if dbCursor.rowcount == 0:
-            return json_error("Not Found")
-        try:
-            db_game = dbCursor.fetchone()
-        except:
-            return json_error("Error fetching games")
-        else:
-            return json_ok(db_game)
+        try: 
+            game_result = get_game(request.args.get('code'))
+            if 'id' in game_result:
+                del game_result['id']
+            return json_ok( game_result )
+        except Exception as e:
+            return json_error(e)
     # post to update a game status.
     if request.method == 'POST':
         post_data = request.get_json(force=True)
@@ -251,8 +261,63 @@ def user():
                 return json_error("name and code is required to register")
         except:
             return json_error("POST data was not json or malformed.")
-    # get considerted getting your results
+    # get considered getting your results
     if request.method == 'GET':
+        get_code = request.args.get('code')
+        get_name = request.args.get('name')
+        try: 
+            game_result = get_game(get_code)
+        except Exception as e:
+            return json_error(e)
+        
+        if game_result['state'] == 0:
+            return json_error("Santas not yet assigned")
+        
+        if game_result['state'] == 1:
+            # get santa info
+            get_santainfo_query = """
+            SELECT santa.name as name,giftees.name as giftee
+                FROM {users} as santa
+                INNER JOIN {users} as giftees ON santa.santa = giftees.id
+                WHERE santa.name = %(username)s AND santa.game = %(gameid)s;
+            """.format(users=true_tablename('users'))
+            try:
+                dbCursor.execute(get_santainfo_query,{'username': get_name, 'gameid':game_result['id'] })
+                if dbCursor.rowcount == 0:
+                    return json_error("Name not found in pool")
+                santa_data = dbCursor.fetchone()
+            except Exception as e:
+                print("Santa info get failed: {}".format(e))
+                return json_error("failed to get giftee information")
+
+            # get idea list
+            get_idea_query = """
+            SELECT idea FROM {ideas} 
+                INNER JOIN {users} ON {ideas}.userid = {users}.id
+                WHERE {users}.name = %(username)s AND {users}.game = %(gameid)s;
+            """.format(users=true_tablename('users'),ideas=true_tablename('ideas'))
+
+            try:
+                dbCursor.execute(get_idea_query,{'username': get_name, 'gameid':game_result['id']})
+                if dbCursor.rowcount == 0:
+                    return json_error("Name not found in pool of ideas")
+                idea_data = dbCursor.fetchall()
+            except Exception as e:
+                print("Santa ideas info get failed: {}".format(e))
+                return json_error("failed to get your ideas")
+
+            idea_list = []
+            for idea in idea_data:
+                idea_list.append(idea['idea'])
+
+            return json_ok({
+                'name': santa_data['name'],
+                'giftee': santa_data['giftee'],
+                'ideas': idea_list
+            })
+        if game_result['state'] == 2:
+            return json_error("group is closed")
+
         return json_error("Not implemented")
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
