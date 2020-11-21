@@ -41,7 +41,7 @@ def true_tablename(tablename):
 # wrapper for sending error messages
 def json_error(message):
     result = {
-        "status": 'Error',
+        "status": 'error',
         "statusdetail": message
     }
     resp = Response(json.dumps(result))
