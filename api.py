@@ -2,7 +2,7 @@ import os
 # for REST like api
 import json
 # flask to provide http layer
-from flask import Flask, request
+from flask import Flask, request, Response
 # database
 import urllib.parse
 import psycopg2
@@ -44,12 +44,16 @@ def json_error(message):
         "status": 'Error',
         "statusdetail": message
     }
-    return json.dumps(result)
+    resp = Response(json.dumps(result))
+    resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
+    return resp
 
 # return data with success code
 def json_ok(data_dict):
     data_dict['status'] = 'ok'
-    return json.dumps(data_dict)
+    resp = Response(json.dumps(data_dict))
+    resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
+    return resp
 
 # check a list into n length parts
 def chunks(lst, n):
@@ -66,14 +70,14 @@ def run_game(id):
     dbCursor.execute(user_query,{'gameid':id})
     all_users = dbCursor.fetchall()
     if len(all_users) < 2:
-        raise RuntimeError("game requires at least 2 users to run.")
+        raise Exception("game requires at least 2 users to run.")
 
     # get ideas
     idea_query = "SELECT id,idea,game FROM {ideas} WHERE game = %(gameid)s;".format(ideas=true_tablename('ideas'))
     dbCursor.execute(idea_query,{'gameid':id})
     all_ideas = dbCursor.fetchall()
     if len(all_ideas) < len(all_users) * 2:
-        raise RuntimeError("game requires at least 2 ideas per user")
+        raise Exception("game requires at least 2 ideas per user")
 
     # assing users to santa's
     random.shuffle(all_users)
@@ -85,7 +89,7 @@ def run_game(id):
             last_user = user
     except Exception as e:
         print("Gamerun: User update failure: {}".format(e))
-        raise RuntimeError("Unable to assign santas")
+        raise Exception("Unable to assign santas")
 
     random.shuffle(all_ideas)
     idea_chunks = list(chunks(all_ideas,2))
@@ -96,7 +100,7 @@ def run_game(id):
                 dbCursor.execute(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
     except Exception as e:
         print("Gamerun: Idea update failure: {}".format(e))
-        raise RuntimeError("Unable to assign ideas")
+        raise Exception("Unable to assign ideas")
 
     # if we are here we should have committed all the above.
     dbConn.commit()
@@ -105,15 +109,15 @@ def run_game(id):
 def get_game(code):
     get_code = code
     if not get_code:
-        raise RuntimeError('Property code is missing or empty.')
+        raise Exception('Property code is missing or empty.')
     query = "SELECT name,state,id FROM {} WHERE code = %(code)s;".format(true_tablename('games'))
     dbCursor.execute(query, {'code': get_code} )
     if dbCursor.rowcount == 0:
-        raise RuntimeError("Not Found")
+        raise Exception("Not Found")
     try:
         db_game = dbCursor.fetchone()
     except:
-        raise RuntimeError("Error fetching games")
+        raise Exception("Error fetching games")
     else:
         return db_game
 
@@ -136,7 +140,7 @@ def game():
                 del game_result['id']
             return json_ok( game_result )
         except Exception as e:
-            return json_error(e)
+            return json_error(str(e))
     # post to update a game status.
     if request.method == 'POST':
         post_data = request.get_json(force=True)
