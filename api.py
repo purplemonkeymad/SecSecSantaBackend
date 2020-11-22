@@ -209,7 +209,7 @@ def game():
                 
                 # get info:
                 get_query = """
-                SELECT {games}.state,{games}.code,
+                SELECT {games}.state,{games}.name,
                 (
                     SELECT COUNT({users}.game) From {users} WHERE {users}.game = {games}.id
                 ) As santas,
