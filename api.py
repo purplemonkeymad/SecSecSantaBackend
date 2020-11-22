@@ -1,3 +1,11 @@
+# Api for a santa "game" for assigning people and ideas automatically as we can't use a hat.
+
+# SQL note:
+#
+# I'm using 2 "formats" for sql queries.  one is used by the sql connector so i used the other type
+# to fill in table names. tables names use a fromat like: {basename} and values %(valuename)s
+# sql queries should be .format ed when created so that they choose dev/prod as needed.
+
 import os
 # for REST like api
 import json
@@ -157,7 +165,7 @@ def game():
                 # states 0 = open; 1 = run; 2 = closed
                 get_query = "SELECT state,code,id FROM {games} WHERE secret = %(secret)s AND code = %(code)s;".format(games=true_tablename('games'))
                 try:
-                    dbCursor.execute(get_query, {'state': post_data['state'], 'code': post_data['code'], 'secret': post_data['secret']} )
+                    dbCursor.execute(get_query, {'code': post_data['code'], 'secret': post_data['secret']} )
                     if dbCursor.rowcount == 0:
                         dbConn.cancel()
                         return json_error("not found")
@@ -194,6 +202,35 @@ def game():
                 else:
                     dbConn.commit()
                     return json_ok( {'state':new_state} )
+            elif 'auth' in post_data:
+                # not making a change just want to authenticate
+                if not 'secret' in post_data:
+                    return json_error("need secret to authenticate")
+                
+                # get info:
+                get_query = """
+                SELECT {games}.state,{games}.code,
+                (
+                    SELECT COUNT({users}.game) From {users} WHERE {users}.game = {games}.id
+                ) As santas,
+                (
+                    SELECT COUNT({ideas}.game) From {ideas} WHERE {ideas}.game = {games}.id
+                ) AS ideas
+                FROM {games}
+                WHERE {games}.secret = %(secret)s AND {games}.code = %(code)s;
+                """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
+                try:
+                    dbCursor.execute(get_query, {'code': post_data['code'], 'secret': post_data['secret']} )
+                    if dbCursor.rowcount == 0:
+                        dbConn.cancel()
+                        return json_error("not found")
+                    current_state = dbCursor.fetchone()
+                except Exception as e:
+                    dbConn.cancel()
+                    print("Game get auth game: {}".format(e))
+                    return json_error("failed to get game")
+
+                return json_ok(current_state)
             else:
                 return json_error("no update key specified")
         except KeyError as e:
