@@ -176,6 +176,13 @@ def game():
 
                 new_state = post_data['state']
 
+                # is closed
+                if current_state['state'] == 2:
+                    if post_data['state'] != 2:
+                        return json_error("State of closed game cannot be changed.")
+                    else:
+                        return json_error("Already closed")
+
                 # set to open
                 if post_data['state'] == 0:
                     if current_state['state'] != 0:
@@ -191,8 +198,6 @@ def game():
                             new_state = current_state['state']
                             print("Error running game: {}".format(e))
                             return json_error("Error running game: {}".format(e))
-                # set to closed
-                # no error to throw atm
 
                 query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
                 dbCursor.execute(query, {'state': new_state, 'code': post_data['code'], 'secret': post_data['secret']} )
