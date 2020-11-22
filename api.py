@@ -46,6 +46,7 @@ def json_error(message):
     }
     resp = Response(json.dumps(result))
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
+    resp.headers['Content-Type'] = 'application/json'
     return resp
 
 # return data with success code
@@ -53,6 +54,7 @@ def json_ok(data_dict):
     data_dict['status'] = 'ok'
     resp = Response(json.dumps(data_dict))
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
+    resp.headers['Content-Type'] = 'application/json'
     return resp
 
 # check a list into n length parts
