@@ -106,6 +106,7 @@ def run_game(id):
     dbConn.commit()
 
 # get game info from the code.
+# the function raises exceptions as a way of providing error failures.
 def get_game(code):
     get_code = code
     if not get_code:
@@ -136,6 +137,7 @@ def game():
     if request.method == 'GET':
         try: 
             game_result = get_game(request.args.get('code'))
+            # id is internal so we should remove it from a public response.
             if 'id' in game_result:
                 del game_result['id']
             return json_ok( game_result )
@@ -208,7 +210,7 @@ def idea():
         post_data = request.get_json(force=True)
         required_field = ['code','idea']
         if all(property in post_data for property in required_field):
-            # check game exists
+            # Existence check is built into the sql query
             insert_query = """INSERT into {ideas}(game,idea) 
             SELECT {games}.id,%(idea)s 
             FROM {games} 
@@ -274,9 +276,11 @@ def user():
         except Exception as e:
             return json_error(e)
         
+        # 0 = open
         if game_result['state'] == 0:
             return json_error("Santas not yet assigned")
         
+        # 1 = run
         if game_result['state'] == 1:
             # get santa info
             get_santainfo_query = """
@@ -319,6 +323,7 @@ def user():
                 'giftee': santa_data['giftee'],
                 'ideas': idea_list
             })
+        # 2 = closed
         if game_result['state'] == 2:
             return json_error("group is closed")
 
@@ -344,6 +349,7 @@ def new():
             privkey = new_password(length=64)
             game_sig = {'name': post_data['name'], 'privkey': privkey, 'pubkey': pubkey}
 
+            # we need to check the pub code does not exist already.
             try:
                 dbCursor.execute(check_query,  { 'pubkey': pubkey} )
                 if dbCursor.rowcount == 0:
