@@ -25,9 +25,12 @@ app = Flask(__name__)
 
 urllib.parse.uses_netloc.append('postgres')
 # heroku puts db info in this env
-url = urllib.parse.urlparse(os.environ['DATABASE_URL'])
-dbConn = psycopg2.connect( database=url.path[1:], user=url.username, password=url.password, host=url.hostname, port=url.port)
-dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
+if "DATABASE_URL" in os.environ:
+    url = urllib.parse.urlparse(os.environ['DATABASE_URL'])
+    dbConn = psycopg2.connect( database=url.path[1:], user=url.username, password=url.password, host=url.hostname, port=url.port)
+    dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
+else:
+    print("DATABASE_URL not set any database connections will fail!")
 
 # helper functions
 
@@ -453,4 +456,10 @@ def reset():
 # For dev local runs, start flask in python process.
 if __name__ == '__main__':
     port = int(os.environ.get('PORT',5000))
-    app.run(host='0.0.0.0', port=port)
+    try: 
+        from waitress import serve
+        print("using waitress as server.")
+        serve(app, host="0.0.0.0", port=port)
+    except ImportError as e:
+        print("waitress not found using flask as server.")
+        app.run(host='0.0.0.0', port=port)
