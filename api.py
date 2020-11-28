@@ -380,6 +380,44 @@ def user():
 
 # admin endpoints
 
+# get a list of users in your game
+# POST
+#   {"code":<gamecode>,"secret":<gamesecret>}
+#
+@app.route('/list_user',methods=['POST'])
+def list_user():
+    try:
+        post_data = request.get_json(force=True)
+        if not 'code' in post_data:
+            return json_error("Parameter 'code' is missing.")
+        get_code = post_data['code']
+        if not 'secret' in post_data:
+            return json_error("Parameter 'secret' is missing.")
+        get_secret = post_data['secret']
+        if len(get_code) == 0 or len(get_secret) == 0:
+            return json_error("Parameters 'code' and 'secret' cannot be empty.")
+        get_userlist_query = """
+        SELECT {users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
+        """.format(users=true_tablename('users'),games=true_tablename('games'))
+        try:
+            dbCursor.execute(get_userlist_query,{'code': get_code, 'secret':get_secret})
+            if dbCursor.rowcount == 0:
+                return json_error("No results, or code or secret is wrong.")
+            user_list = dbCursor.fetchall()
+            # convert to list
+
+            flat_list = []
+            for user in user_list:
+                flat_list.append(user['name'])
+            
+            return json_ok({'users': flat_list})
+        except Exception as e:
+            print("unable to get user list: {}".format(e))
+            return json_error("Unable to retrive user list.")
+    except Exception as e:
+        print("list_user exception: {}".format(e))
+        return json_error("Internal Error")
+
 # create a new group/game
 # POST
 #    {"name":<gameDisplayName>}
