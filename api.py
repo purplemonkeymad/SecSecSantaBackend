@@ -281,6 +281,9 @@ def idea():
 @app.route('/user',methods=['POST','GET'])
 def user():
     # post is considered registering for a game
+    #
+    # POST /user
+    #     {"code":<gamecode>,"name":<yourname>}
     if request.method == 'POST':
         try:
             post_data = request.get_json(force=True)
@@ -315,6 +318,9 @@ def user():
         except:
             return json_error("POST data was not json or malformed.")
     # get considered getting your results
+    #
+    # GET /user?code=<gamecode>&name=<name>
+    #
     if request.method == 'GET':
         get_code = request.args.get('code')
         get_name = request.args.get('name')
@@ -381,7 +387,7 @@ def user():
 # admin endpoints
 
 # get a list of users in your game
-# POST
+# POST /list_user
 #   {"code":<gamecode>,"secret":<gamesecret>}
 #
 @app.route('/list_user',methods=['POST'])
