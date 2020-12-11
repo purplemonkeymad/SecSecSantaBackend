@@ -251,31 +251,72 @@ def game():
 # submit ideas for a game to allow for the draw.
 # POST
 #    {"code":<gamepubcode>,"idea":<ideatext>}
-@app.route('/idea', methods=['POST'])
+@app.route('/idea', methods=['POST','GET'])
 def idea():
-    try:
-        post_data = request.get_json(force=True)
-        required_field = ['code','idea']
-        if all(property in post_data for property in required_field):
-            # Existence check is built into the sql query
-            insert_query = """INSERT into {ideas}(game,idea) 
-            SELECT {games}.id,%(idea)s 
-            FROM {games} 
-            WHERE {games}.code=%(code)s and 
-            exists(SELECT id FROM {games} WHERE {games}.code=%(code)s);""".format(ideas=true_tablename('ideas'),games=true_tablename('games'))
+    if request.method == 'POST':
+        # this is to add new ideas/suggestions to the group.
+        try:
+            post_data = request.get_json(force=True)
+            required_field = ['code','idea']
+            if all(property in post_data for property in required_field):
+                # Existence check is built into the sql query
+                insert_query = """INSERT into {ideas}(game,idea) 
+                SELECT {games}.id,%(idea)s 
+                FROM {games} 
+                WHERE {games}.code=%(code)s and 
+                exists(SELECT id FROM {games} WHERE {games}.code=%(code)s);""".format(ideas=true_tablename('ideas'),games=true_tablename('games'))
+                try:
+                    dbCursor.execute(insert_query,{'idea': post_data['idea'], 'code': post_data['code']})
+                    if dbCursor.rowcount == 0:
+                        dbConn.cancel()
+                        return json_error("Game not found.")
+                    dbConn.commit()
+                    return json_ok( {} )
+                except Exception as e:
+                    print("Idea insert error: {}".format(e))
+                    return json_error("Error adding idea")
+
+        except:
+            return json_error("POST data was not json or malformed.")
+    if request.method == 'GET':
+        # this is to retrive the left over list.
+        # not sure that it makes sense to restrict this to creators.
+        get_code = request.args.get('code')
+        try: 
+            game_result = get_game(get_code)
+        except Exception as e:
+            return json_error(str(e))
+
+        # test if group is "rolled"
+        if game_result['state'] == 1:
+            ideas_get_query = """
+            SELECT idea
+            FROM {ideas}
+            WHERE {ideas}.game=%(gameid)s
+            AND {ideas}.userid=-1;
+            """.format(ideas=true_tablename('ideas'))
             try:
-                dbCursor.execute(insert_query,{'idea': post_data['idea'], 'code': post_data['code']})
+                dbCursor.execute(ideas_get_query,{'gameid': game_result['id']})
                 if dbCursor.rowcount == 0:
                     dbConn.cancel()
-                    return json_error("Game not found.")
-                dbConn.commit()
-                return json_ok( {} )
-            except Exception as e:
-                print("Idea insert error: {}".format(e))
-                return json_error("Error adding idea")
+                    # 0 is not an error there just might not be any left over ideas
+                    return json_ok({'ideas':['All ideas were used!']})
+                idea_results = dbCursor.fetchall()
 
-    except:
-        return json_error("POST data was not json or malformed.")
+                # expand property to list:
+                idea_list = []
+                for idea in idea_results:
+                    idea_list.append(idea['idea'])
+
+                return json_ok( {'ideas': idea_list } )
+            except Exception as e:
+                print("ideas get error: {}".format(e))
+                return json_error("Error getting ideas.")
+        
+        # state is not 1
+        else:
+            return json_error("Group has not been rolled yet, nothing to get.")
+    return json_error("Not sure what to do.")
 
 # user register and game results
 @app.route('/user',methods=['POST','GET'])
@@ -327,7 +368,7 @@ def user():
         try: 
             game_result = get_game(get_code)
         except Exception as e:
-            return json_error(e)
+            return json_error(str(e))
         
         # 0 = open
         if game_result['state'] == 0:
