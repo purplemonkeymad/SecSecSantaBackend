@@ -329,12 +329,16 @@ def user():
         try:
             post_data = request.get_json(force=True)
             if all (property in post_data for property in ('name','code')):
+
+                # we should trim the name at this point
+                clean_name = post_data['name'].strip()
+
                 # in code check, let me know if you know a way to do it in sql.
                 check_query = """SELECT {users}.name,code FROM {users} 
                 INNER JOIN {games} ON {users}.game={games}.id 
                 WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
                 try:
-                    dbCursor.execute(check_query,{'name':post_data['name'],'code':post_data['code']})
+                    dbCursor.execute(check_query,{'name':clean_name,'code':post_data['code']})
                     if not dbCursor.rowcount == 0:
                         return json_error("Already Registered, try another name.")
                     else:
@@ -344,7 +348,7 @@ def user():
                         WHERE {games}.code = %(code)s AND
                         NOT EXISTS (Select {users}.name,code FROM {users} INNER JOIN {games} ON {users}.game={games}.id WHERE {users}.name = %(name)s AND {games}.code = %(code)s);
                         """.format(games=true_tablename('games'),users=true_tablename('users'))
-                        dbCursor.execute(register_query, {'name':post_data['name'], 'code':post_data['code']})
+                        dbCursor.execute(register_query, {'name':clean_name, 'code':post_data['code']})
                         dbConn.commit()
                         if dbCursor.rowcount == 0:
                             return json_error("Game not found")
@@ -369,6 +373,9 @@ def user():
             game_result = get_game(get_code)
         except Exception as e:
             return json_error(str(e))
+
+        # we should trim the name at this point
+        clean_name = get_name.strip()
         
         # 0 = open
         if game_result['state'] == 0:
@@ -381,10 +388,10 @@ def user():
             SELECT santa.name as name,giftees.name as giftee
                 FROM {users} as santa
                 INNER JOIN {users} as giftees ON santa.santa = giftees.id
-                WHERE santa.name = %(username)s AND santa.game = %(gameid)s;
+                WHERE TRIM(from santa.name) = %(username)s AND santa.game = %(gameid)s;
             """.format(users=true_tablename('users'))
             try:
-                dbCursor.execute(get_santainfo_query,{'username': get_name, 'gameid':game_result['id'] })
+                dbCursor.execute(get_santainfo_query,{'username': clean_name, 'gameid':game_result['id'] })
                 if dbCursor.rowcount == 0:
                     return json_error("Name not found in pool")
                 santa_data = dbCursor.fetchone()
@@ -396,11 +403,11 @@ def user():
             get_idea_query = """
             SELECT idea FROM {ideas} 
                 INNER JOIN {users} ON {ideas}.userid = {users}.id
-                WHERE {users}.name = %(username)s AND {users}.game = %(gameid)s;
+                WHERE TRIM(from {users}.name) = %(username)s AND {users}.game = %(gameid)s;
             """.format(users=true_tablename('users'),ideas=true_tablename('ideas'))
 
             try:
-                dbCursor.execute(get_idea_query,{'username': get_name, 'gameid':game_result['id']})
+                dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid':game_result['id']})
                 if dbCursor.rowcount == 0:
                     return json_error("Name not found in pool of ideas")
                 idea_data = dbCursor.fetchall()
