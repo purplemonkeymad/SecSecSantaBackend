@@ -12,9 +12,9 @@ from psycopg2.extras import RealDictCursor
 urllib.parse.uses_netloc.append('postgres')
 # heroku puts db info in this env
 if "DATABASE_URL" in os.environ:
-    dburl = urllib.parse.urlparse(os.environ['DATABASE_URL'])
-    dbConn = psycopg2.connect( database=dburl.path[1:], user=dburl.username, password=dburl.password, host=dburl.hostname, port=dburl.port)
-    dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
+    __dburl = urllib.parse.urlparse(os.environ['DATABASE_URL'])
+    __dbConn = psycopg2.connect( database=__dburl.path[1:], user=__dburl.username, password=__dburl.password, host=__dburl.hostname, port=__dburl.port)
+    __dbCursor = __dbConn.cursor(cursor_factory=RealDictCursor)
 else:
     print("DATABASE_URL not set any database connections will fail!")
 
@@ -22,15 +22,15 @@ else:
 # state setup
 
 if os.environ.get('IS_PROD',0) == 1:
-    table_prefix = "prod"
+    __table_prefix = "prod"
 else:
-    table_prefix = "dev"
-realm_name = "santa"
+    __table_prefix = "dev"
+__realm_name = "santa"
 
 # internal funcs
 
 def true_tablename(tablename):
-    return "{}_{}_{}".format(table_prefix,realm_name,tablename)
+    return "{}_{}_{}".format(__table_prefix,__realm_name,tablename)
 
 # external funcs
 
@@ -51,5 +51,5 @@ def get_users(query:dict, properties:list = ['id','name','game','state'] ):
     # convert querykeys to string
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
     user_query = "SELECT {props} FROM {users} WHERE {query_string};".format(users=true_tablename('users'),props=properties,query_string=query_keys)
-    dbCursor.execute(user_query,{'gameid':query})
-    return dbCursor.fetchall()
+    __dbCursor.execute(user_query,query)
+    return __dbCursor.fetchall()
