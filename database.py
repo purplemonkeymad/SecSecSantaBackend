@@ -92,3 +92,12 @@ def get_idea(query:dict, properties:list = ['id','game','idea','userid']):
     """
     valid_properties = ['id','game','idea','userid']
     return __get_simple_table('ideas',properties,query,valid_properties)
+
+
+# admin funcs
+
+def get_all_games():
+    properties = ['id','name','code','state']
+    user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
+    __dbCursor.execute(user_query,{})
+    return __dbCursor.fetchall()
