@@ -32,6 +32,9 @@ __realm_name = "santa"
 def true_tablename(tablename):
     return "{}_{}_{}".format(__table_prefix,__realm_name,tablename)
 
+def __stringlist_to_sql_columns(columns:list) -> str:
+    return ','.join(columns)
+
 # external funcs
 
 def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
@@ -50,7 +53,7 @@ def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
 
     # convert querykeys to string
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
-    user_query = "SELECT {props} FROM {users} WHERE {query_string};".format(users=true_tablename('users'),props=properties,query_string=query_keys)
+    user_query = "SELECT {props} FROM {users} WHERE {query_string};".format(users=true_tablename('users'),props=__stringlist_to_sql_columns(properties),query_string=query_keys)
     __dbCursor.execute(user_query,query)
     return __dbCursor.fetchall()
 
@@ -70,6 +73,6 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
 
     # convert querykeys to string
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
-    user_query = "SELECT {props} FROM {game} WHERE {query_string};".format(game=true_tablename('games'),props=properties,query_string=query_keys)
+    user_query = "SELECT {props} FROM {game} WHERE {query_string};".format(game=true_tablename('games'),props=__stringlist_to_sql_columns(properties),query_string=query_keys)
     __dbCursor.execute(user_query,query)
     return __dbCursor.fetchall()
