@@ -41,6 +41,22 @@ def __stringlist_to_sql_columns(columns:list) -> str:
     """
     return ','.join(columns)
 
+def __assert_dict_columns(query:dict,valid_list:list):
+    """Tests for invalid columns in a dict use for requests.
+    """
+    invalid_properties = [x for x in query.keys() if x not in valid_list]
+    if (invalid_properties):
+        raise KeyError("Invalid query property {props} for database query. The valid list of columns are: {valid}".format(props=invalid_properties,valid=valid_list))
+    return 0
+
+def __assert_columns(wanted:list,valid_list:list):
+    """Tests for invalid column names in a list.
+    """
+    invalid_properties = [x for x in wanted if x not in valid_list]
+    if (invalid_properties):
+        raise KeyError("Invalid properties {props} for database query. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_list))
+    return 0
+
 def __get_new_cursor():
     """Gets a new cursor, needed for atomic operations that use multiple sql commands
     """
@@ -55,15 +71,9 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
     if (len(column_query) == 0):
         raise KeyError("Simple database lookup requires at least one column lookup.")
 
-     # whitelist good property names
-    invalid_properties = [x for x in columns_to_get if x not in valid_columns]
-    if (invalid_properties):
-        raise KeyError("Invalid properties {props} for database query. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_columns))
-
-    # whitelist good query names
-    invalid_query_names = [x for x in column_query.keys() if x not in valid_columns]
-    if (invalid_query_names):
-        raise KeyError("Invalid query column {props} for database query. The valid list of columns are: {valid}".format(props=invalid_query_names,valid=valid_columns))
+    # whitelist column names to prevent injection attack.
+    __assert_columns(columns_to_get,valid_columns)
+    __assert_dict_columns(column_query,valid_columns)
 
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in column_query.keys() ] )
     user_query = "SELECT {props} FROM {table} WHERE {query_string};".format(table=true_tablename(table_name),props=__stringlist_to_sql_columns(columns_to_get),query_string=query_keys)
@@ -73,7 +83,7 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
 
 # external funcs
 
-def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
+def get_users(query:dict, properties:list = ['id','name','game'] ):
     """ Gets a user from a game by id,game etc.
     """
     # valid properties
@@ -87,17 +97,44 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     valid_properties = ['id','name','secret','code','state']
     return __get_simple_table('games',properties,query,valid_properties)
 
-def get_idea(query:dict, properties:list = ['id','game','idea','userid']):
+def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
     """
     valid_properties = ['id','game','idea','userid']
     return __get_simple_table('ideas',properties,query,valid_properties)
 
+# owner funcs
+# all funcs should check the game secret is correct.
+
+def get_users_in_game(code:str,secret:str,properties:list = ['id','name','game']):
+    """List of users that have joined a game
+    """
+
+    # not all properties here so game owners can't see info about relations
+    valid_properties = ['id','name','game']
+    # test for bad properties
+    __assert_columns(properties,valid_properties)
+
+    if (len(code) == 0 or len(secret) ==0 ):
+        raise ValueError("Gameid or Secret are empty, both values are required.")
+
+    get_userlist_query = """
+    SELECT {users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
+    """.format(users=true_tablename('users'),games=true_tablename('games'))
+
+    __dbCursor.execute(get_userlist_query,{'code':code,'secret':secret})
+    return __dbCursor.fetchall()
 
 # admin funcs
 
 def get_all_games():
     properties = ['id','name','code','state']
     user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
+    __dbCursor.execute(user_query,{})
+    return __dbCursor.fetchall()
+
+def get_all_open_games():
+    properties = ['id','name','code','state']
+    user_query = "SELECT {props} FROM {table} WHERE state = 0;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
