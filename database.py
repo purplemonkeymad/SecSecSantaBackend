@@ -86,3 +86,9 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     # valid properties
     valid_properties = ['id','name','secret','code','state']
     return __get_simple_table('games',properties,query,valid_properties)
+
+def get_idea(query:dict, properties:list = ['id','game','idea','userid']):
+    """ Gets ideas from game/id
+    """
+    valid_properties = ['id','game','idea','userid']
+    return __get_simple_table('ideas',properties,query,valid_properties)
