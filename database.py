@@ -35,44 +35,38 @@ def true_tablename(tablename):
 def __stringlist_to_sql_columns(columns:list) -> str:
     return ','.join(columns)
 
+
+def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,valid_columns:list):
+    # prevent a get all of table without a query
+    if (len(column_query) == 0):
+        raise KeyError("Simple database lookup requires at least one column lookup.")
+
+     # whitelist good property names
+    invalid_properties = [x for x in columns_to_get if x not in valid_columns]
+    if (invalid_properties):
+        raise KeyError("Invalid properties {props} for database query. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_columns))
+
+    # whitelist good query names
+    invalid_query_names = [x for x in column_query.keys() if x not in valid_columns]
+    if (invalid_query_names):
+        raise KeyError("Invalid query column {props} for database query. The valid list of columns are: {valid}".format(props=invalid_query_names,valid=valid_columns))
+
+    query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in column_query.keys() ] )
+    user_query = "SELECT {props} FROM {table} WHERE {query_string};".format(table=true_tablename(table_name),props=__stringlist_to_sql_columns(columns_to_get),query_string=query_keys)
+    __dbCursor.execute(user_query,column_query)
+    return __dbCursor.fetchall()
+
+
 # external funcs
 
 def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
 
     # valid properties
     valid_properties = ['id','name','game','santa']
-    # whitelist good property names
-    invalid_properties = [x for x in properties if x not in valid_properties]
-    if (invalid_properties):
-        raise KeyError("Invalid properties {props} called to get_users. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_properties))
-
-    # whitelist good query names
-    invalid_query_names = [x for x in query.keys() if x not in valid_properties]
-    if (invalid_query_names):
-        raise KeyError("Invalid query column {props} called to get_users. The valid list of columns are: {valid}".format(props=invalid_query_names,valid=valid_properties))
-
-    # convert querykeys to string
-    query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
-    user_query = "SELECT {props} FROM {users} WHERE {query_string};".format(users=true_tablename('users'),props=__stringlist_to_sql_columns(properties),query_string=query_keys)
-    __dbCursor.execute(user_query,query)
-    return __dbCursor.fetchall()
+    return __get_simple_table('users',properties,query,valid_properties)
 
 def get_game(query:dict, properties:list = ['id','name','code','state'] ):
 
     # valid properties
     valid_properties = ['id','name','secret','code','state']
-    # whitelist good property names
-    invalid_properties = [x for x in properties if x not in valid_properties]
-    if (invalid_properties):
-        raise KeyError("Invalid properties {props} called to get_game. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_properties))
-
-    # whitelist good query names
-    invalid_query_names = [x for x in query.keys() if x not in valid_properties]
-    if (invalid_query_names):
-        raise KeyError("Invalid query column {props} called to get_game. The valid list of columns are: {valid}".format(props=invalid_query_names,valid=valid_properties))
-
-    # convert querykeys to string
-    query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
-    user_query = "SELECT {props} FROM {game} WHERE {query_string};".format(game=true_tablename('games'),props=__stringlist_to_sql_columns(properties),query_string=query_keys)
-    __dbCursor.execute(user_query,query)
-    return __dbCursor.fetchall()
+    return __get_simple_table('games',properties,query,valid_properties)
