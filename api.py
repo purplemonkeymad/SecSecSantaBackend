@@ -19,6 +19,10 @@ from psycopg2.extras import RealDictCursor
 import string
 import random
 
+# localdb
+
+import database
+
 app = Flask(__name__)
 
 # db setup
@@ -121,19 +125,18 @@ def run_game(id):
 # get game info from the code.
 # the function raises exceptions as a way of providing error failures.
 def get_game(code):
-    get_code = code
-    if not get_code:
+    if not code:
         raise Exception('Property code is missing or empty.')
-    query = "SELECT name,state,id FROM {} WHERE code = %(code)s;".format(true_tablename('games'))
-    dbCursor.execute(query, {'code': get_code} )
-    if dbCursor.rowcount == 0:
-        raise Exception("Not Found")
+    
     try:
-        db_game = dbCursor.fetchone()
-    except:
+        game_list =  database.get_game({'code':code},properties=['name','state','id'])
+    except Exception as e:
+        print("get_game error, {}".format(e))
         raise Exception("Error fetching games")
     else:
-        return db_game
+        if len(game_list) == 0:
+            raise Exception("Not Found")
+        return game_list[0]
 
 # endpoints
 
@@ -155,6 +158,7 @@ def game():
                 del game_result['id']
             return json_ok( game_result )
         except Exception as e:
+            print("/game call error from {ip} {method} error: {error}".format(error=e,ip=request.remote_addr,method=request.method))
             return json_error(str(e))
     # post to update a game status.
     if request.method == 'POST':
