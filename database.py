@@ -34,10 +34,10 @@ def true_tablename(tablename):
 
 # external funcs
 
-def get_users(query:dict, properties:list = ['id','name','game','state'] ):
+def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
 
     # valid properties
-    valid_properties = ['id','name','game','state']
+    valid_properties = ['id','name','game','santa']
     # whitelist good property names
     invalid_properties = [x for x in properties if x not in valid_properties]
     if (invalid_properties):
@@ -51,5 +51,25 @@ def get_users(query:dict, properties:list = ['id','name','game','state'] ):
     # convert querykeys to string
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
     user_query = "SELECT {props} FROM {users} WHERE {query_string};".format(users=true_tablename('users'),props=properties,query_string=query_keys)
+    __dbCursor.execute(user_query,query)
+    return __dbCursor.fetchall()
+
+def get_game(query:dict, properties:list = ['id','name','code','state'] ):
+
+    # valid properties
+    valid_properties = ['id','name','secret','code','state']
+    # whitelist good property names
+    invalid_properties = [x for x in properties if x not in valid_properties]
+    if (invalid_properties):
+        raise KeyError("Invalid properties {props} called to get_game. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_properties))
+
+    # whitelist good query names
+    invalid_query_names = [x for x in query.keys() if x not in valid_properties]
+    if (invalid_query_names):
+        raise KeyError("Invalid query column {props} called to get_game. The valid list of columns are: {valid}".format(props=invalid_query_names,valid=valid_properties))
+
+    # convert querykeys to string
+    query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in query.keys() ] )
+    user_query = "SELECT {props} FROM {game} WHERE {query_string};".format(game=true_tablename('games'),props=properties,query_string=query_keys)
     __dbCursor.execute(user_query,query)
     return __dbCursor.fetchall()
