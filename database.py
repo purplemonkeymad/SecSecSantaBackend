@@ -21,7 +21,7 @@ else:
 
 # state setup
 
-if os.environ.get('IS_PROD',0) == 1:
+if os.environ.get('IS_PROD',0) == '1':
     __table_prefix = "prod"
 else:
     __table_prefix = "dev"
