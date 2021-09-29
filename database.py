@@ -30,13 +30,27 @@ __realm_name = "santa"
 # internal funcs
 
 def true_tablename(tablename):
+    """Convert a basic table name to one with realm and env names
+
+    :param tablename: Short name to convert to actual name
+    """
     return "{}_{}_{}".format(__table_prefix,__realm_name,tablename)
 
 def __stringlist_to_sql_columns(columns:list) -> str:
+    """Convert a list of strings to column definitions in sql
+    """
     return ','.join(columns)
 
+def __get_new_cursor():
+    """Gets a new cursor, needed for atomic operations that use multiple sql commands
+    """
+    return __dbConn.cursor(cursor_factory=RealDictCursor)
 
 def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,valid_columns:list):
+    """Does a simple lookup against a single table.
+    This is for basic 'Select column From table Where column = value;' queries.
+    It creates a parameterized query to prevent injection attacks.
+    """
     # prevent a get all of table without a query
     if (len(column_query) == 0):
         raise KeyError("Simple database lookup requires at least one column lookup.")
@@ -60,13 +74,15 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
 # external funcs
 
 def get_users(query:dict, properties:list = ['id','name','game','santa'] ):
-
+    """ Gets a user from a game by id,game etc.
+    """
     # valid properties
     valid_properties = ['id','name','game','santa']
     return __get_simple_table('users',properties,query,valid_properties)
 
 def get_game(query:dict, properties:list = ['id','name','code','state'] ):
-
+    """ Gets a game from id/code etc.
+    """
     # valid properties
     valid_properties = ['id','name','secret','code','state']
     return __get_simple_table('games',properties,query,valid_properties)
