@@ -43,6 +43,9 @@ Describe "/new" {
         }
     }
 }
+
+Write-Host "testing Game: $(Out-string -InputObject $persistantVariables.NewGame)"
+
 Describe "/game read data" {
     Context "Data errors" {
         It "No param errors" {
@@ -73,7 +76,7 @@ Describe "/game read data" {
             $persistantVariables.GetGame.name | Should -Be "Pester Testing Game"
         }
         It "Should return a valid state" {
-            $persistantVariables.GetGame.state | Should -BeIn 1,2,3
+            $persistantVariables.GetGame.state | Should -BeIn 0,1,2
         }
     }
 }
