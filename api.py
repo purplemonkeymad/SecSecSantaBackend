@@ -81,6 +81,9 @@ def json_ok(data_dict):
     resp.headers['Content-Type'] = 'application/json'
     return resp
 
+def exception_as_string(exception) -> str:
+    return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
+
 # check a list into n length parts
 def chunks(lst, n):
     for i in range(0, len(lst), n):
@@ -474,24 +477,27 @@ def list_user():
 @app.route('/new', methods=['POST'])
 def new():
     try:
-        post_data = request.get_json(force=True)
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
         if 'name' in post_data:
             if len(post_data['name']) > 0:
                 try:
                     game_sig = santalogic.create_game(post_data['name'])
                     if len(game_sig) == 0:
-                        return json_error( "No game returned")
+                        return json_error("No game returned")
                     else:
                         return json_ok( game_sig )
                 except Exception as e:
-                    return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)))
+                    return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
             else:
                 json_error( "Game name must not be empty." )
         else:
             # no name in data
             return json_error( "'name' is a required value." )
-    except:
-        return json_error("POST data was not json or malformed.")
+    except Exception as e:
+        return json_error("An Internal error occurred",internal_message="Uncaught Exception: {}".format(exception_as_string(e)))
 
 # reset/create db
 # resets the databases, it's important that you keep the globalsecret safe and long.
