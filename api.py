@@ -454,20 +454,13 @@ def list_user():
         get_secret = post_data['secret']
         if len(get_code) == 0 or len(get_secret) == 0:
             return json_error("Parameters 'code' and 'secret' cannot be empty.")
-        get_userlist_query = """
-        SELECT {users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
-        """.format(users=true_tablename('users'),games=true_tablename('games'))
         try:
-            dbCursor.execute(get_userlist_query,{'code': get_code, 'secret':get_secret})
-            if dbCursor.rowcount == 0:
+            user_list = database.get_users_in_game(get_code,get_secret,['name'])
+            if len(user_list) == 0:
                 return json_error("No results, or code or secret is wrong.")
-            user_list = dbCursor.fetchall()
-            # convert to list
 
-            flat_list = []
-            for user in user_list:
-                flat_list.append(user['name'])
-            
+            # convert to list
+            flat_list = [user['name'] for user in user_list]           
             return json_ok({'users': flat_list})
         except Exception as e:
             print("unable to get user list: {}".format(e))
