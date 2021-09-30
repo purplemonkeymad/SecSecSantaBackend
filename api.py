@@ -7,8 +7,10 @@
 # sql queries should be .format ed when created so that they choose dev/prod as needed.
 
 import os
+import traceback
 # for REST like api
 import json
+from types import TracebackType
 # flask to provide http layer
 from flask import Flask, request, Response
 # database
@@ -22,6 +24,7 @@ import random
 # localdb
 
 import database
+import santalogic
 
 app = Flask(__name__)
 
@@ -473,25 +476,17 @@ def new():
     try:
         post_data = request.get_json(force=True)
         if 'name' in post_data:
-            # sql statements
-            check_query = "SELECT name FROM {} Where code=%(pubkey)s;".format(true_tablename('games'))
-            insert_query = "INSERT INTO {} VALUES(DEFAULT,%(name)s,%(privkey)s,%(pubkey)s,0);".format(true_tablename('games'))
-            # generate keys
-            pubkey = new_password(length=8)
-            privkey = new_password(length=64)
-            game_sig = {'name': post_data['name'], 'privkey': privkey, 'pubkey': pubkey}
-
-            # we need to check the pub code does not exist already.
-            try:
-                dbCursor.execute(check_query,  { 'pubkey': pubkey} )
-                if dbCursor.rowcount == 0:
-                    dbCursor.execute(insert_query,  game_sig)
-                    dbConn.commit()
-                    return json_ok( game_sig )
-                else:
-                    return json_error( "Unable to generate unique game, try again." )
-            except Exception as e:
-                return json_error("An internal error occurred.")
+            if len(post_data['name']) > 0:
+                try:
+                    game_sig = santalogic.create_game(post_data['name'])
+                    if len(game_sig) == 0:
+                        return json_error( "No game returned")
+                    else:
+                        return json_ok( game_sig )
+                except Exception as e:
+                    return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__)))
+            else:
+                json_error( "Game name must not be empty." )
         else:
             # no name in data
             return json_error( "'name' is a required value." )

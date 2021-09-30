@@ -97,6 +97,14 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     valid_properties = ['id','name','secret','code','state']
     return __get_simple_table('games',properties,query,valid_properties)
 
+def new_game(name:str,privkey:str,pubkey:str):
+    """ Inserts a new game into the database.
+    """
+    query = "INSERT INTO {} VALUES(DEFAULT,%(name)s,%(privkey)s,%(pubkey)s,0) RETURNING id,name,code,state,secret ;".format(true_tablename('games'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query,{'name':name,'privkey':privkey,'pubkey':pubkey})
+        return cursor.fetchall()
+
 def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
     """
