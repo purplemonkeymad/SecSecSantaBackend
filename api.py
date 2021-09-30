@@ -59,6 +59,7 @@ def json_error(message):
         "status": 'error',
         "statusdetail": message
     }
+    print("API Error: {ip},{agent},{url},{method},{error}".format(ip=request.remote_addr, url=request.url, agent=request.user_agent, method=request.method, error=message))
     resp = Response(json.dumps(result))
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
     resp.headers['Content-Type'] = 'application/json'
