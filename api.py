@@ -54,12 +54,16 @@ def true_tablename(tablename):
     return "{}_{}_{}".format(table_prefix,realm_name,tablename)
 
 # wrapper for sending error messages
-def json_error(message):
+def json_error(message,internal_message=''):
+    """Generate an error object for api return, and log the error.
+    """
     result = {
         "status": 'error',
         "statusdetail": message
     }
-    print("API Error: {ip},{agent},{url},{method},{error}".format(ip=request.remote_addr, url=request.url, agent=request.user_agent, method=request.method, error=message))
+    if (internal_message == ''):
+        internal_message = message
+    print("{ip},{agent},{url},{method},{error}".format(ip=request.remote_addr, url=request.url, agent=request.user_agent, method=request.method, error=internal_message))
     resp = Response(json.dumps(result))
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
     resp.headers['Content-Type'] = 'application/json'
@@ -67,6 +71,7 @@ def json_error(message):
 
 # return data with success code
 def json_ok(data_dict):
+    print("{ip},{agent},{url},{method},{error}".format(ip=request.remote_addr, url=request.url, agent=request.user_agent, method=request.method, error='ok'))
     data_dict['status'] = 'ok'
     resp = Response(json.dumps(data_dict))
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
@@ -159,7 +164,6 @@ def game():
                 del game_result['id']
             return json_ok( game_result )
         except Exception as e:
-            print("/game call error from {ip} {method} error: {error}".format(error=e,ip=request.remote_addr,method=request.method))
             return json_error(str(e))
     # post to update a game status.
     if request.method == 'POST':
@@ -204,7 +208,6 @@ def game():
                             run_game(current_state['id'])
                         except Exception as e:
                             new_state = current_state['state']
-                            print("Error running game: {}".format(e))
                             return json_error("Error running game: {}".format(e))
 
                 query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
@@ -240,7 +243,6 @@ def game():
                     current_state = dbCursor.fetchone()
                 except Exception as e:
                     dbConn.cancel()
-                    print("Game get auth game: {}".format(e))
                     return json_error("failed to get game")
 
                 return json_ok(current_state)
@@ -278,7 +280,6 @@ def idea():
                     dbConn.commit()
                     return json_ok( {} )
                 except Exception as e:
-                    print("Idea insert error: {}".format(e))
                     return json_error("Error adding idea")
 
         except:
@@ -315,7 +316,6 @@ def idea():
 
                 return json_ok( {'ideas': idea_list } )
             except Exception as e:
-                print("ideas get error: {}".format(e))
                 return json_error("Error getting ideas.")
         
         # state is not 1
@@ -360,7 +360,6 @@ def user():
                         else:
                             return json_ok ({})
                 except Exception as e:
-                    print("check user error: {}".format(e))
                     dbConn.cancel()
                     return json_error("Internal error occured")
             else:
@@ -401,7 +400,6 @@ def user():
                     return json_error("Name not found in pool")
                 santa_data = dbCursor.fetchone()
             except Exception as e:
-                print("Santa info get failed: {}".format(e))
                 return json_error("failed to get giftee information")
 
             # get idea list
@@ -417,7 +415,6 @@ def user():
                     return json_error("Name not found in pool of ideas")
                 idea_data = dbCursor.fetchall()
             except Exception as e:
-                print("Santa ideas info get failed: {}".format(e))
                 return json_error("failed to get your ideas")
 
             idea_list = []
@@ -464,10 +461,8 @@ def list_user():
             flat_list = [user['name'] for user in user_list]           
             return json_ok({'users': flat_list})
         except Exception as e:
-            print("unable to get user list: {}".format(e))
             return json_error("Unable to retrive user list.")
     except Exception as e:
-        print("list_user exception: {}".format(e))
         return json_error("Internal Error")
 
 # create a new group/game
@@ -496,7 +491,6 @@ def new():
                 else:
                     return json_error( "Unable to generate unique game, try again." )
             except Exception as e:
-                print("sql error on /new: {}".format(e))
                 return json_error("An internal error occurred.")
         else:
             # no name in data
@@ -532,13 +526,12 @@ def reset():
                 dbConn.commit()
                 return json_ok( {} )
             else:
-                return json_error("")
+                return json_error("",internal_message="Rest attempt, bad password.")
         else:
-            return json_error("")
+            return json_error("",internal_message="Opportunistic reset attempt")
     except Exception as e:
         dbConn.cancel()
-        print("Reset error: {}".format(e))
-        return json_error("")
+        return json_error("",internal_message="Reset Error: {}".format(str(e)))
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
 
