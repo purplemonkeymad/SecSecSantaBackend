@@ -6,6 +6,8 @@ import urllib.parse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+import SantaErrors
+
 # db setup
 
 
@@ -56,6 +58,17 @@ def __assert_columns(wanted:list,valid_list:list):
     if (invalid_properties):
         raise KeyError("Invalid properties {props} for database query. The valid list of properties are: {valid}".format(props=invalid_properties,valid=valid_list))
     return 0
+
+def __assert_admin_key(admin_key:str):
+    """Test if the admin key matches configured key.
+    """
+    if 'AdminSecret' not in os.environ:
+        raise SantaErrors.ConfigurationError("Admin Secret not set, admin functions cannot be used until set.")
+    if len(os.environ['AdminSecret']) < 10:
+        raise SantaErrors.ConfigurationError("Admin Secret too short, admin functions cannot be used until set.")
+    if admin_key == os.environ['AdminSecret']:
+        return 0
+    raise SantaErrors.AuthorizationError("Not Authorized.")
 
 def __get_new_cursor():
     """Gets a new cursor, needed for atomic operations that use multiple sql commands
@@ -135,13 +148,15 @@ def get_users_in_game(code:str,secret:str,properties:list = ['id','name','game']
 
 # admin funcs
 
-def get_all_games():
+def get_all_games(admin_key:str):
+    __assert_admin_key(admin_key)
     properties = ['id','name','code','state']
     user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
-def get_all_open_games():
+def get_all_open_games(admin_key:str):
+    __assert_admin_key(admin_key)
     properties = ['id','name','code','state']
     user_query = "SELECT {props} FROM {table} WHERE state = 0;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
