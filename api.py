@@ -499,6 +499,43 @@ def new():
     except Exception as e:
         return json_error("An Internal error occurred",internal_message="Uncaught Exception: {}".format(exception_as_string(e)))
 
+
+# List games in the database, admin only
+# needs post for authentication
+# POST
+#   {"admin_key": <globalsecret>}
+
+@app.route('/get_games',methods=['POST'])
+def get_games():
+    """ API endpoint, list all games.
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("Post Data malformed")
+        # check we have required keys
+        required_keys = ['admin_key']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("","A required Key is missing {}".format(missing_keys))
+        else:
+            if 'view' in post_data:
+                ## prebuild views
+                if post_data['view'] == 'open':
+                    gamelist = database.get_all_open_games(post_data['admin_key'])
+                elif post_data['view'] == 'complete':
+                    gamelist = database.get_all_complete_games(post_data['admin_key'])
+                elif post_data['view'] == 'closed':
+                    gamelist = database.get_all_closed_games(post_data['admin_key'])
+                else:
+                    return json_error("","Unknown view: {}".format(post_data['view']))
+            else:
+                gamelist = database.get_all_games(post_data['admin_key'])
+            return json_ok({'gamelist':gamelist})
+    except Exception as e:
+        return json_error("",internal_message="Get_Games Error: {}".format(str(e)))
+
 # reset/create db
 # resets the databases, it's important that you keep the globalsecret safe and long.
 # POST
