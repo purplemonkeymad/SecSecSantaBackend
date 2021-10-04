@@ -368,38 +368,22 @@ def user():
         # 1 = run
         if game_result['state'] == 1:
             # get santa info
-            get_santainfo_query = """
-            SELECT santa.name as name,giftees.name as giftee
-                FROM {users} as santa
-                INNER JOIN {users} as giftees ON santa.santa = giftees.id
-                WHERE TRIM(from santa.name) = %(username)s AND santa.game = %(gameid)s;
-            """.format(users=true_tablename('users'))
             try:
-                dbCursor.execute(get_santainfo_query,{'username': clean_name, 'gameid':game_result['id'] })
-                if dbCursor.rowcount == 0:
-                    return json_error("Name not found in pool")
-                santa_data = dbCursor.fetchone()
+                santa_data = database.get_user_giftee(get_name,game_result['id'])[0]
+                if len(santa_data) == 0:
+                    return json_error("Name or Giftee not found.")
             except Exception as e:
-                return json_error("failed to get giftee information")
+                return json_error("failed to get giftee information","Failed to get giftee information: {}".format(str(e)))
 
             # get idea list
-            get_idea_query = """
-            SELECT idea FROM {ideas} 
-                INNER JOIN {users} ON {ideas}.userid = {users}.id
-                WHERE TRIM(from {users}.name) = %(username)s AND {users}.game = %(gameid)s;
-            """.format(users=true_tablename('users'),ideas=true_tablename('ideas'))
-
             try:
-                dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid':game_result['id']})
-                if dbCursor.rowcount == 0:
-                    return json_error("Name not found in pool of ideas")
-                idea_data = dbCursor.fetchall()
+                idea_data = database.get_user_ideas(get_name,game_result['id'])
+                if len(idea_data) == 0:
+                    return json_error("Name or Ideas not found.")
             except Exception as e:
-                return json_error("failed to get your ideas")
+                return json_error("failed to get your ideas","Failed to get ideas: {}".format(str(e)))
 
-            idea_list = []
-            for idea in idea_data:
-                idea_list.append(idea['idea'])
+            idea_list = [x['idea'] for x in idea_data]
 
             return json_ok({
                 'name': santa_data['name'],
