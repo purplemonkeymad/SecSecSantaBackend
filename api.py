@@ -301,28 +301,18 @@ def idea():
 
         # test if group is "rolled"
         if game_result['state'] == 1:
-            ideas_get_query = """
-            SELECT idea
-            FROM {ideas}
-            WHERE {ideas}.game=%(gameid)s
-            AND {ideas}.userid=-1;
-            """.format(ideas=true_tablename('ideas'))
             try:
-                dbCursor.execute(ideas_get_query,{'gameid': game_result['id']})
-                if dbCursor.rowcount == 0:
-                    dbConn.cancel()
-                    # 0 is not an error there just might not be any left over ideas
+                idea_results = database.get_idea({
+                    'game': game_result['id'],
+                    'userid': -1,
+                },properties=['idea'])
+
+                if len(idea_results) == 0:
                     return json_ok({'ideas':['All ideas were used!']})
-                idea_results = dbCursor.fetchall()
 
-                # expand property to list:
-                idea_list = []
-                for idea in idea_results:
-                    idea_list.append(idea['idea'])
-
-                return json_ok( {'ideas': idea_list } )
+                return json_ok({'ideas':[ x['idea'] for x in idea_results]})
             except Exception as e:
-                return json_error("Error getting ideas.")
+                return json_error("Error getting ideas.","Error getting ideas: {}".format(str(e)))
         
         # state is not 1
         else:
