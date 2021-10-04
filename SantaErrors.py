@@ -1,3 +1,6 @@
+""" Custom Errors for the SecSocSanta API
+"""
+
 class AuthorizationError(Exception):
     pass
 

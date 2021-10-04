@@ -1,3 +1,8 @@
+"""
+More complex functions for the Santa, contains logic for more
+that just reading a writting the database. Ie new game/triggering a draw etc.
+"""
+
 import database
 
 import string

@@ -1,5 +1,9 @@
 # Interface for SQL calls,
 
+""" Database wrapper for db calls, allows calling db as code instead of having
+other code mess with sql.
+"""
+
 import os
 # database
 import urllib.parse
