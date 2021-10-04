@@ -39,3 +39,21 @@ def create_game(name:str):
     game = database.new_game(name,game_secret,game_code)[0]
     # db and api have different key names.
     return {'name':game['name'],'privkey':game['secret'],'pubkey':game['code']}
+
+# get game info from the code.
+# the function raises exceptions as a way of providing error failures.
+def get_game(code):
+    """ provides a safe way to get a game, with errors thrown for common issues.
+    """
+    if not code:
+        raise Exception('Property code is missing or empty.')
+    
+    try:
+        game_list =  database.get_game({'code':code},properties=['name','state','id'])
+    except Exception as e:
+        print("get_game error, {}".format(e))
+        raise Exception("Error fetching games")
+    else:
+        if len(game_list) == 0:
+            raise Exception("Not Found")
+        return game_list[0]

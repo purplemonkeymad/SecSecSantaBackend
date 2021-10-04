@@ -134,22 +134,6 @@ def run_game(id):
     # if we are here we should have committed all the above.
     dbConn.commit()
 
-# get game info from the code.
-# the function raises exceptions as a way of providing error failures.
-def get_game(code):
-    if not code:
-        raise Exception('Property code is missing or empty.')
-    
-    try:
-        game_list =  database.get_game({'code':code},properties=['name','state','id'])
-    except Exception as e:
-        print("get_game error, {}".format(e))
-        raise Exception("Error fetching games")
-    else:
-        if len(game_list) == 0:
-            raise Exception("Not Found")
-        return game_list[0]
-
 # endpoints
 
 # /game  :
@@ -164,7 +148,7 @@ def game():
     # get for getting info about game
     if request.method == 'GET':
         try: 
-            game_result = get_game(request.args.get('code'))
+            game_result = santalogic.get_game(request.args.get('code'))
             # id is internal so we should remove it from a public response.
             if 'id' in game_result:
                 del game_result['id']
@@ -295,7 +279,7 @@ def idea():
         # not sure that it makes sense to restrict this to creators.
         get_code = request.args.get('code')
         try: 
-            game_result = get_game(get_code)
+            game_result = santalogic.get_game(get_code)
         except Exception as e:
             return json_error(str(e))
 
@@ -370,7 +354,7 @@ def user():
         get_code = request.args.get('code')
         get_name = request.args.get('name')
         try: 
-            game_result = get_game(get_code)
+            game_result = santalogic.get_game(get_code)
         except Exception as e:
             return json_error(str(e))
 
