@@ -149,6 +149,40 @@ def get_user_ideas(user_name:str,game_id:int):
     __dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid': game_id })
     return __dbCursor.fetchall()
 
+def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
+    """
+    Sets the santa of a user.
+    """
+    update_query = """
+    WITH gameinfo AS (
+        -- Get game by code and secret
+        SELECT {games}.id as gameid
+        FROM {games} 
+        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+    )
+    UPDATE {users} 
+    SET santa = %(santaid)s 
+    FROM gameinfo
+    WHERE {users}.id = %(userid)s
+    AND {users}.game = gameinfo.gameid;
+    """.format(users=true_tablename('users'),games=true_tablename('games'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(update_query,{
+            'code':game_code,
+            'secret':game_secret,
+            'userid':user_id,
+            'santaid':santa_id,
+        })
+        if cursor.rowcount == 0:
+            raise FileNotFoundError("Unable to update user, one or more keys were wrong.")
+        elif not cursor.rowcount == 1:
+            __dbConn.rollback()
+            raise RuntimeError("Database attempted to make multiple changes to single item action.")
+        else:
+            # exactly one
+            __dbConn.commit()
+            return
+
 
 def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     """ Gets a game from id/code etc.
@@ -156,6 +190,30 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     # valid properties
     valid_properties = ['id','name','secret','code','state']
     return __get_simple_table('games',properties,query,valid_properties)
+
+def get_game_ideas(pubkey:str,privkey:str):
+    """
+    Gets ideas from a game code.
+    """
+    if len(pubkey) == 0:
+        raise ValueError("Code is empty.")
+    if len(privkey) == 0:
+        raise ValueError("Secret is empty")
+
+    get_idea_query = """
+    SELECT {ideas}.id,idea,game
+    FROM {ideas} 
+        INNER JOIN {games} 
+        ON {games}.id = {ideas}.game
+    WHERE {games}.code = %(code)s
+    AND {games}.secret = %(secret)s;
+    """.format(games=true_tablename('games'),ideas=true_tablename('ideas'))
+
+    __dbCursor.execute(get_idea_query,{
+        'code': pubkey,
+        'secret': privkey
+    })
+    return __dbCursor.fetchall()
 
 def new_game(name:str,privkey:str,pubkey:str):
     """ Inserts a new game into the database.
@@ -246,27 +304,76 @@ def new_idea(pubkey:str,idea:str):
             raise FileNotFoundError("Game not found.")
         return result
 
+def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
+    """
+    Sets the idea of a user.
+    """
+    update_query = """
+    WITH gameinfo AS (
+        -- Get game by code and secret
+        SELECT {games}.id as gameid
+        FROM {games} 
+        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+    )
+    UPDATE {ideas} 
+    SET userid = %(userid)s 
+    FROM gameinfo
+    WHERE {ideas}.id = %(ideaid)s
+    AND {ideas}.game = gameinfo.gameid;
+    """.format(ideas=true_tablename('ideas'),games=true_tablename('games'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(update_query,{
+            'code':game_code,
+            'secret':game_secret,
+            'userid':user_id,
+            'ideaid':idea_id,
+        })
+        if cursor.rowcount == 0:
+            raise FileNotFoundError("Unable to update idea assignment, one or more keys were wrong.")
+        elif not cursor.rowcount == 1:
+            __dbConn.rollback()
+            raise RuntimeError("Database attempted to make multiple changes to single item action.")
+        else:
+            # exactly one
+            __dbConn.commit()
+            return
+
 # owner funcs
 # all funcs should check the game secret is correct.
 
-def get_users_in_game(code:str,secret:str,properties:list = ['id','name','game']):
+def get_users_in_game(code:str,secret:str):
     """List of users that have joined a game
     """
-
-    # not all properties here so game owners can't see info about relations
-    valid_properties = ['id','name','game']
-    # test for bad properties
-    __assert_columns(properties,valid_properties)
 
     if (len(code) == 0 or len(secret) ==0 ):
         raise ValueError("Gameid or Secret are empty, both values are required.")
 
     get_userlist_query = """
-    SELECT {users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
+    SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
     """.format(users=true_tablename('users'),games=true_tablename('games'))
 
     __dbCursor.execute(get_userlist_query,{'code':code,'secret':secret})
     return __dbCursor.fetchall()
+
+def set_game_state(code:str,secret:str,new_state:int):
+    """
+    Updates the stored state value of a game.
+    """
+    query = """
+    UPDATE {games} SET state = %(state)s 
+    WHERE secret = %(secret)s AND code = %(code)s
+    RETURNING {games}.code,{games}.state;
+    """.format(games=true_tablename('games'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query,{
+            'state': new_state,
+            'code': code,
+            'secret': secret,
+        })
+        result = cursor.fetchall()
+        if len(result) == 0:
+            raise FileNotFoundError("Game not found.")
+        return result
 
 # admin funcs
 

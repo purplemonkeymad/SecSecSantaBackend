@@ -9,3 +9,15 @@ class ConfigurationError(Exception):
     configuration of the application.
     """
     pass
+
+class GameStateError(Exception):
+    """
+    Indicates issues with the current state of a 
+    game.
+    """
+    pass
+
+class GameChangeStateError(Exception):
+    """
+    Indicates error when changing the state of a game.
+    """

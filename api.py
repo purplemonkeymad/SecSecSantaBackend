@@ -25,6 +25,7 @@ import random
 
 import database
 import santalogic
+import SantaErrors
 
 app = Flask(__name__)
 
@@ -84,56 +85,6 @@ def json_ok(data_dict):
 def exception_as_string(exception) -> str:
     return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
 
-# check a list into n length parts
-def chunks(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i+n]
-
-def run_game(id):
-    # game has two parts, ideas, santas
-    # each user is given another user to be santa of
-    # each user is also given two unique ideas from the idea pool
-    
-    #all users
-    user_query = "SELECT id,name,game FROM {users} WHERE game = %(gameid)s;".format(users=true_tablename('users'))
-    dbCursor.execute(user_query,{'gameid':id})
-    all_users = dbCursor.fetchall()
-    if len(all_users) < 2:
-        raise Exception("game requires at least 2 users to run.")
-
-    # get ideas
-    idea_query = "SELECT id,idea,game FROM {ideas} WHERE game = %(gameid)s;".format(ideas=true_tablename('ideas'))
-    dbCursor.execute(idea_query,{'gameid':id})
-    all_ideas = dbCursor.fetchall()
-    if len(all_ideas) < len(all_users) * 2:
-        raise Exception("game requires at least 2 ideas per user")
-
-    # assing users to santa's
-    random.shuffle(all_users)
-    user_update_query = "UPDATE {users} SET santa = %(santa)s WHERE id = %(userid)s;".format(users=true_tablename('users'))
-    try:
-        last_user = all_users[-1]
-        for user in all_users:
-            dbCursor.execute(user_update_query,{'userid':user['id'], 'santa': last_user['id']})
-            last_user = user
-    except Exception as e:
-        print("Gamerun: User update failure: {}".format(e))
-        raise Exception("Unable to assign santas")
-
-    random.shuffle(all_ideas)
-    idea_chunks = list(chunks(all_ideas,2))
-    idea_update_query = "UPDATE {ideas} SET userid = %(userid)s WHERE id = %(ideaid)s;".format(ideas=true_tablename('ideas'))
-    try:
-        for i in range(0, len(all_users)):
-            for j in idea_chunks[i]:
-                dbCursor.execute(idea_update_query,{'userid': all_users[i]['id'],'ideaid':j['id'] })
-    except Exception as e:
-        print("Gamerun: Idea update failure: {}".format(e))
-        raise Exception("Unable to assign ideas")
-
-    # if we are here we should have committed all the above.
-    dbConn.commit()
-
 # endpoints
 
 # /game  :
@@ -157,62 +108,36 @@ def game():
             return json_error(str(e))
     # post to update a game status.
     if request.method == 'POST':
-        post_data = request.get_json(force=True)
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("invalid json data.")
         if len(post_data) == 0:
             return json_error("No Data sent in request")
         try:
             if 'state' in post_data:
                 if not 'secret' in post_data:
                     return json_error("need secret to modify game")
-                # states 0 = open; 1 = run; 2 = closed
-                get_query = "SELECT state,code,id FROM {games} WHERE secret = %(secret)s AND code = %(code)s;".format(games=true_tablename('games'))
+                if not 'code' in post_data:
+                    return json_error("need code to modify game")
+
                 try:
-                    dbCursor.execute(get_query, {'code': post_data['code'], 'secret': post_data['secret']} )
-                    if dbCursor.rowcount == 0:
-                        dbConn.cancel()
-                        return json_error("not found")
-                    current_state = dbCursor.fetchone()
-                except:
-                    dbConn.cancel()
-                    return json_error("failed to get game")
+                    santalogic.update_game_state(post_data['code'],post_data['secret'],post_data['state'])
+                    return json_ok({})
+                except SantaErrors.GameChangeStateError as e:
+                    return json_error(str(e))
+                except SantaErrors.GameStateError as e:
+                    return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
+                except Exception as e:
+                    return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
 
-                new_state = post_data['state']
-
-                # is closed
-                if current_state['state'] == 2:
-                    if post_data['state'] != 2:
-                        return json_error("State of closed game cannot be changed.")
-                    else:
-                        return json_error("Already closed")
-
-                # set to open
-                if post_data['state'] == 0:
-                    if current_state['state'] != 0:
-                        return json_error("Cannot re-open a game, create a new one.")
-                # set to run
-                if post_data['state'] == 1:
-                    if current_state['state'] != 0:
-                        return json_error("Can only run open games.")
-                    else:
-                        try:
-                            run_game(current_state['id'])
-                        except Exception as e:
-                            new_state = current_state['state']
-                            return json_error("Error running game: {}".format(e))
-
-                query = "UPDATE {} SET state = %(state)s WHERE secret = %(secret)s AND code = %(code)s;".format(true_tablename('games'))
-                dbCursor.execute(query, {'state': new_state, 'code': post_data['code'], 'secret': post_data['secret']} )
-                if dbCursor.rowcount == 0:
-                    dbConn.cancel()
-                    return json_error("not updated")
-                else:
-                    dbConn.commit()
-                    return json_ok( {'state':new_state} )
             elif 'auth' in post_data:
                 # not making a change just want to authenticate
                 if not 'secret' in post_data:
                     return json_error("need secret to authenticate")
-                
+                if not 'code' in post_data:
+                    return json_error("need code to modify game")
+
                 # get info:
                 get_query = """
                 SELECT {games}.state,{games}.name,

@@ -136,3 +136,52 @@ Describe "/idea on game" {
         }
     }
 }
+
+Describe "/game state changes" {
+    Context "post errors" {
+        It "No param errors" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post
+            $r.status | Should -Be "error"
+        }
+        It "empty post values" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body '{}'
+            $r.status | Should -Be "error"
+        }
+        It "missing secret" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+        It "missing code" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{secret=$persistantVariables.NewGame.privkey} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+    }
+    Context "state errors" {
+        It "missing secret" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey;state=0} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+        It "missing code" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{secret=$persistantVariables.NewGame.privkey;state=0} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+        It "Same state" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{
+                secret=$persistantVariables.NewGame.privkey
+                code=$persistantVariables.NewGame.pubkey
+                state=0
+            } | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+    }
+    Context "run game" {
+        It "updates state" {
+            $r = Invoke-RestMethod "$APIEndpoint/game" -Method Post -Body (@{
+                secret=$persistantVariables.NewGame.privkey
+                code=$persistantVariables.NewGame.pubkey
+                state=1
+            } | ConvertTo-Json)
+            $r.status | Should -Be "ok"
+        }
+    }
+}
