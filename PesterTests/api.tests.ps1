@@ -1,3 +1,5 @@
+#requires -module pester
+
 [CmdletBinding()]
 param (
     [Parameter()]
@@ -8,8 +10,6 @@ $DefParams = @{
     UseBasicParsing = $true
     'ContentType' = 'application/json'
 }
-
-Import-Module pester
 
 $persistantVariables = @{}
 
@@ -77,6 +77,62 @@ Describe "/game read data" {
         }
         It "Should return a valid state" {
             $persistantVariables.GetGame.state | Should -BeIn 0,1,2
+        }
+    }
+}
+
+Describe "/user on test game" {
+    Context "error for new" {
+        It "No param errors" {
+            $r = Invoke-RestMethod "$APIEndpoint/user" -Method Post
+            $r.status | Should -Be "error"
+        }
+        It "empty post values" {
+            $r = Invoke-RestMethod "$APIEndpoint/user" -Method Post -Body '{}'
+            $r.status | Should -Be "error"
+        }
+        It "missing Name" {
+            $r = Invoke-RestMethod "$APIEndpoint/user" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+        It "missing code" {
+            $r = Invoke-RestMethod "$APIEndpoint/user" -Method Post -Body (@{name = "Error User"} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+    }
+    Context "Registration" {
+        It "Registers User <number>" -TestCases (1..4 | % { @{ number = $_ }}) {
+            Param($number)
+            $r = Invoke-RestMethod "$APIEndpoint/user" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey;name = "Test User $number"} | ConvertTo-Json)
+            $r.status | Should -Be "ok"
+        }
+    }
+}
+
+Describe "/idea on game" {
+    Context "error for new" {
+        It "No param errors" {
+            $r = Invoke-RestMethod "$APIEndpoint/idea" -Method Post
+            $r.status | Should -Be "error"
+        }
+        It "empty post values" {
+            $r = Invoke-RestMethod "$APIEndpoint/idea" -Method Post -Body '{}'
+            $r.status | Should -Be "error"
+        }
+        It "missing idea" {
+            $r = Invoke-RestMethod "$APIEndpoint/idea" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+        It "missing code" {
+            $r = Invoke-RestMethod "$APIEndpoint/idea" -Method Post -Body (@{idea = "Error Idea"} | ConvertTo-Json)
+            $r.status | Should -Be "error"
+        }
+    }
+    Context "Submission" {
+        It "Adds an idea <number>" -TestCases (1..8 | % { @{ number = $_ }}) {
+            param($number)
+            $r = Invoke-RestMethod "$APIEndpoint/idea" -Method Post -Body (@{code=$persistantVariables.NewGame.pubkey;idea = "Test Idea $number"} | ConvertTo-Json)
+            $r.status | Should -Be "ok"
         }
     }
 }
