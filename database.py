@@ -165,6 +165,57 @@ def new_game(name:str,privkey:str,pubkey:str):
         cursor.execute(query,{'name':name,'privkey':privkey,'pubkey':pubkey})
         return cursor.fetchall()
 
+def join_game(user_name:str,pubkey:str):
+    """ Inserts a new name into a game
+    """
+    ## updated query needs updated db settings, TODO this later.
+    query = """
+        INSERT INTO {users} (game,name)
+            SELECT {games}.id,%(name)s
+                FROM {games} WHERE {games}.code = %(code)s
+        ON CONFLICT("name") DO NOTHING
+        RETURNING {users}.id,{users}.name,{users}.game
+    """.format(users=true_tablename('users'),games=true_tablename('games'))
+
+    check_query = """
+        SELECT {users}.name,code 
+        FROM {users}
+            INNER JOIN {games} ON {users}.game={games}.id 
+        WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
+    register_query = """
+        INSERT INTO {users}(game,name)
+            SELECT {games}.id,%(name)s
+            FROM {games}
+            WHERE {games}.code = %(code)s AND
+            NOT EXISTS (
+                Select {users}.name,code FROM {users} 
+                    INNER JOIN {games} 
+                    ON {users}.game={games}.id 
+                WHERE {users}.name = %(name)s AND {games}.code = %(code)s
+            )
+        RETURNING {users}.id,{users}.name,{users}.game;
+    """.format(games=true_tablename('games'),users=true_tablename('users'))
+                        
+
+    # we should trim the name at this point
+    clean_name = user_name.strip()
+
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(check_query,{
+            'name':clean_name,
+            'code':pubkey,
+        })
+        result = cursor.fetchall()
+        if len(result) == 0:
+            # no matching item insert item
+            cursor.execute(register_query,{
+                'name':clean_name,
+                'code':pubkey,
+            })
+            return cursor.fetchall()
+        else:
+            raise FileExistsError("Name already registered.")
+
 def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
     """

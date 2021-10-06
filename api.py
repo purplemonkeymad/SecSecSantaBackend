@@ -312,40 +312,22 @@ def user():
     #     {"code":<gamecode>,"name":<yourname>}
     if request.method == 'POST':
         try:
-            post_data = request.get_json(force=True)
+            try:
+                post_data = request.get_json(force=True)
+            except:
+                return json_error("POST data was not json or malformed.")
             if all (property in post_data for property in ('name','code')):
-
-                # we should trim the name at this point
-                clean_name = post_data['name'].strip()
-
-                # in code check, let me know if you know a way to do it in sql.
-                check_query = """SELECT {users}.name,code FROM {users} 
-                INNER JOIN {games} ON {users}.game={games}.id 
-                WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
                 try:
-                    dbCursor.execute(check_query,{'name':clean_name,'code':post_data['code']})
-                    if not dbCursor.rowcount == 0:
-                        return json_error("Already Registered, try another name.")
-                    else:
-                        register_query = """INSERT INTO {users}(game,name)
-                        SELECT {games}.id,%(name)s
-                        FROM {games}
-                        WHERE {games}.code = %(code)s AND
-                        NOT EXISTS (Select {users}.name,code FROM {users} INNER JOIN {games} ON {users}.game={games}.id WHERE {users}.name = %(name)s AND {games}.code = %(code)s);
-                        """.format(games=true_tablename('games'),users=true_tablename('users'))
-                        dbCursor.execute(register_query, {'name':clean_name, 'code':post_data['code']})
-                        dbConn.commit()
-                        if dbCursor.rowcount == 0:
-                            return json_error("Game not found")
-                        else:
-                            return json_ok ({})
+                    database.join_game(post_data['name'],post_data['code'])
+                    return json_ok ({})
+                except FileExistsError as e:
+                    return json_error("{}".format(str(e)))
                 except Exception as e:
-                    dbConn.cancel()
-                    return json_error("Internal error occured")
+                    return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
             else:
-                return json_error("name and code is required to register")
-        except:
-            return json_error("POST data was not json or malformed.")
+                return json_error("Name and code is required to register.")
+        except Exception as e:
+            return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
     # get considered getting your results
     #
     # GET /user?code=<gamecode>&name=<name>
