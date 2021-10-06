@@ -253,27 +253,23 @@ def idea():
     if request.method == 'POST':
         # this is to add new ideas/suggestions to the group.
         try:
-            post_data = request.get_json(force=True)
+            try:
+                post_data = request.get_json(force=True)
+            except:
+                return json_error("POST data was not json or malformed.")
+            
             required_field = ['code','idea']
             if all(property in post_data for property in required_field):
-                # Existence check is built into the sql query
-                insert_query = """INSERT into {ideas}(game,idea) 
-                SELECT {games}.id,%(idea)s 
-                FROM {games} 
-                WHERE {games}.code=%(code)s and 
-                exists(SELECT id FROM {games} WHERE {games}.code=%(code)s);""".format(ideas=true_tablename('ideas'),games=true_tablename('games'))
                 try:
-                    dbCursor.execute(insert_query,{'idea': post_data['idea'], 'code': post_data['code']})
-                    if dbCursor.rowcount == 0:
-                        dbConn.cancel()
-                        return json_error("Game not found.")
-                    dbConn.commit()
+                    database.new_idea(post_data['code'],post_data['idea'])
                     return json_ok( {} )
+                except FileNotFoundError as e:
+                    return json_error(str(e))
                 except Exception as e:
-                    return json_error("Error adding idea")
+                    return json_error("Error adding idea","Idea Error: {}".format(exception_as_string(e)))
 
         except:
-            return json_error("POST data was not json or malformed.")
+            return json_error("Internal Error.","Idea POST error: {}".format(exception_as_string(e)))
     if request.method == 'GET':
         # this is to retrive the left over list.
         # not sure that it makes sense to restrict this to creators.

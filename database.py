@@ -222,6 +222,30 @@ def get_idea(query:dict, properties:list = ['id','game','idea']):
     valid_properties = ['id','game','idea','userid']
     return __get_simple_table('ideas',properties,query,valid_properties)
 
+def new_idea(pubkey:str,idea:str):
+    """
+    Add a new idea to a game
+    """
+    query = """
+        INSERT into {ideas}(game,idea) 
+        SELECT {games}.id,%(idea)s 
+        FROM {games} 
+        WHERE {games}.code=%(code)s and 
+        exists(
+            SELECT id FROM {games} WHERE {games}.code=%(code)s
+        )
+        RETURNING {ideas}.id,{ideas}.idea,{ideas}.game;
+    """.format(ideas=true_tablename('ideas'),games=true_tablename('games'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query,{
+            'idea':idea,
+            'code':pubkey,
+        })
+        result = cursor.fetchall()
+        if len(result) == 0:
+            raise FileNotFoundError("Game not found.")
+        return result
+
 # owner funcs
 # all funcs should check the game secret is correct.
 
