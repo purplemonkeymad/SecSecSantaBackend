@@ -4,6 +4,12 @@
 other code mess with sql.
 """
 
+# SQL note:
+#
+# I'm using 2 "formats" for sql queries.  one is used by the sql connector so i used the other type
+# to fill in table names. tables names use a fromat like: {basename} and values %(valuename)s
+# sql queries should be .format ed when created so that they choose dev/prod as needed.
+
 import os
 # database
 import urllib.parse
@@ -33,7 +39,9 @@ else:
     __table_prefix = "dev"
 __realm_name = "santa"
 
+###############################
 # internal funcs
+###############################
 
 def true_tablename(tablename):
     """Convert a basic table name to one with realm and env names
@@ -97,8 +105,9 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
     __dbCursor.execute(user_query,column_query)
     return __dbCursor.fetchall()
 
-
+#######################
 # external funcs
+#######################
 
 def get_users(query:dict, properties:list = ['id','name','game'] ):
     """ Gets a user from a game by id,game etc.
@@ -338,8 +347,36 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
             __dbConn.commit()
             return
 
+#########################################################
 # owner funcs
 # all funcs should check the game secret is correct.
+#########################################################
+
+def get_game_sum(code:str,secret:str):
+    """ Gets a summary of at game, can be used to check
+    authentication.
+    """
+
+    if (len(code) == 0 or len(secret) ==0 ):
+        raise ValueError("Gameid or Secret are empty, both values are required.")
+
+    get_summary_query = """
+    SELECT {games}.state,{games}.name,
+    (
+        SELECT COUNT({users}.game) From {users} WHERE {users}.game = {games}.id
+    ) As santas,
+    (
+        SELECT COUNT({ideas}.game) From {ideas} WHERE {ideas}.game = {games}.id
+    ) AS ideas
+    FROM {games}
+    WHERE {games}.secret = %(secret)s AND {games}.code = %(code)s;
+    """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
+
+    __dbCursor.execute(get_summary_query,{
+        'code':code,
+        'secret':secret,
+    })
+    return __dbCursor.fetchall()
 
 def get_users_in_game(code:str,secret:str):
     """List of users that have joined a game
@@ -359,6 +396,10 @@ def set_game_state(code:str,secret:str,new_state:int):
     """
     Updates the stored state value of a game.
     """
+
+    if (len(code) == 0 or len(secret) ==0 ):
+        raise ValueError("Gameid or Secret are empty, both values are required.")
+    
     query = """
     UPDATE {games} SET state = %(state)s 
     WHERE secret = %(secret)s AND code = %(code)s
@@ -375,7 +416,10 @@ def set_game_state(code:str,secret:str,new_state:int):
             raise FileNotFoundError("Game not found.")
         return result
 
+###########################################
 # admin funcs
+# all method should check for an admin_key
+###########################################
 
 def get_all_games(admin_key:str):
     __assert_admin_key(admin_key)

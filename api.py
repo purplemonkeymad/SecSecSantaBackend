@@ -1,10 +1,5 @@
 # Api for a santa "game" for assigning people and ideas automatically as we can't use a hat.
 
-# SQL note:
-#
-# I'm using 2 "formats" for sql queries.  one is used by the sql connector so i used the other type
-# to fill in table names. tables names use a fromat like: {basename} and values %(valuename)s
-# sql queries should be .format ed when created so that they choose dev/prod as needed.
 
 import os
 import traceback
@@ -139,32 +134,21 @@ def game():
                     return json_error("need code to modify game")
 
                 # get info:
-                get_query = """
-                SELECT {games}.state,{games}.name,
-                (
-                    SELECT COUNT({users}.game) From {users} WHERE {users}.game = {games}.id
-                ) As santas,
-                (
-                    SELECT COUNT({ideas}.game) From {ideas} WHERE {ideas}.game = {games}.id
-                ) AS ideas
-                FROM {games}
-                WHERE {games}.secret = %(secret)s AND {games}.code = %(code)s;
-                """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
                 try:
-                    dbCursor.execute(get_query, {'code': post_data['code'], 'secret': post_data['secret']} )
-                    if dbCursor.rowcount == 0:
-                        dbConn.cancel()
-                        return json_error("not found")
-                    current_state = dbCursor.fetchone()
+                    results = database.get_game_sum(post_data['code'],post_data['secret'])
+                    if len(results) == 0:
+                        return json_error("Not found, or bad secret.")
+                    
+                    return json_ok(results[0])
                 except Exception as e:
                     dbConn.cancel()
-                    return json_error("failed to get game")
-
-                return json_ok(current_state)
+                    return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
             else:
                 return json_error("no update key specified")
         except KeyError as e:
             return json_error("missing key: {}".format(e.args[0]))
+        except Exception as e:
+            return json_error("Internal Error","Internal error on game: {}".format(exception_as_string(e)))
     
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
