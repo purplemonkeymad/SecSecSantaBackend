@@ -244,9 +244,6 @@ def user():
             game_result = santalogic.get_game(get_code)
         except Exception as e:
             return json_error(str(e))
-
-        # we should trim the name at this point
-        clean_name = get_name.strip()
         
         # 0 = open
         if game_result['state'] == 0:
@@ -389,27 +386,13 @@ def get_games():
 def reset():
     # clear and create a new db set
     try:
-        post_data = request.get_json(force=True)
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
         if 'admin_key' in post_data:
-            if post_data['admin_key'] == os.environ['AdminSecret']:
-                drop_list = [
-                    'drop table IF EXISTS {};'.format(true_tablename('games')),
-                    'drop table IF EXISTS {};'.format(true_tablename('ideas')),
-                    'drop table IF EXISTS {};'.format(true_tablename('users'))
-                ]
-                create_list = [
-                    'create table {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-                    'create table {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
-                    'create table {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users'))
-                ]
-                for query in drop_list:
-                    dbCursor.execute(query)
-                for query in create_list:
-                    dbCursor.execute(query)
-                dbConn.commit()
-                return json_ok( {} )
-            else:
-                return json_error("",internal_message="Rest attempt, bad password.")
+            reset_result = database.reset_all_tables(post_data['admin_key'])
+            return json_ok( reset_result )
         else:
             return json_error("",internal_message="Opportunistic reset attempt")
     except Exception as e:
@@ -418,6 +401,26 @@ def reset():
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
 
+# create/update database schema
+# POST
+#    {"admin_key": <globalsecret>}
+@app.route('/init_db_tables', methods=['POST'])
+def init_db_tables():
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
+        if 'admin_key' in post_data:
+            init_result = 'not implemented' #database.reset_all_tables(post_data['admin_key'])
+            return json_ok( init_result )
+        else:
+            return json_error("",internal_message="Opportunistic init attempt")
+    except Exception as e:
+        dbConn.cancel()
+        return json_error("",internal_message="Init Error: {}".format(str(e)))
+    # due to the nature of the interface no error messages are currently returned.
+    return json_error("Not Implemented")
 
 # For dev local runs, start flask in python process.
 if __name__ == '__main__':

@@ -82,6 +82,18 @@ def __assert_admin_key(admin_key:str):
         return 0
     raise SantaErrors.AuthorizationError("Not Authorized.")
 
+def __assert_can_do_major_db_changes():
+    """
+    Checks that table changes and resets are enabled sys vars
+    """
+    if 'AllowTableTruncates' not in os.environ:
+        raise SantaErrors.AuthorizationError("Table Truncation setting missing, default is disabled.")
+    if len(os.environ['AllowTableTruncates']) == 0:
+        raise SantaErrors.AuthorizationError("Table Truncation setting empty, default is disabled.")
+    if os.environ['AllowtableTruncates'] == 'AllowTruncates':
+        return 0
+    raise SantaErrors.AuthorizationError("table Truncation settings is not 'AllowTruncates', value is disabled.")
+
 def __get_new_cursor():
     """Gets a new cursor, needed for atomic operations that use multiple sql commands
     """
@@ -448,3 +460,32 @@ def get_all_closed_games(admin_key:str):
     user_query = "SELECT {props} FROM {table} WHERE state = 2;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
+
+def reset_all_tables(admin_key:str):
+    __assert_admin_key(admin_key)
+    __assert_can_do_major_db_changes()
+    table_list = [
+        true_tablename('games'),
+        true_tablename('ideas'),
+        true_tablename('users'),
+    ]
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        for table in table_list:
+            table_truncate = "TRUNCATE TABLE {};".format(table)
+            cursor.execute(table_truncate,{})
+        __dbConn.commit()
+        return {'resetstatus':'ok'}
+
+def init_tables(admin_key:str):
+    __assert_admin_key(admin_key)
+    __assert_can_do_major_db_changes()
+    table_definition = [
+        'CREATE TABLE IF NOT EXISTS {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
+        'CREATE TABLE IF NOT EXISTS {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
+        'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users'))
+    ]
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        for table in table_definition:
+            cursor.execute(table,{})
+        __dbConn.commit()
+        return {'initstatus':'ok'}
