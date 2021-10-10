@@ -8,10 +8,6 @@ import json
 from types import TracebackType
 # flask to provide http layer
 from flask import Flask, request, Response
-# database
-import urllib.parse
-import psycopg2
-from psycopg2.extras import RealDictCursor
 # cheap keygen
 import string
 import random
@@ -25,15 +21,6 @@ import SantaErrors
 app = Flask(__name__)
 
 # db setup
-
-urllib.parse.uses_netloc.append('postgres')
-# heroku puts db info in this env
-if "DATABASE_URL" in os.environ:
-    url = urllib.parse.urlparse(os.environ['DATABASE_URL'])
-    dbConn = psycopg2.connect( database=url.path[1:], user=url.username, password=url.password, host=url.hostname, port=url.port)
-    dbCursor = dbConn.cursor(cursor_factory=RealDictCursor)
-else:
-    print("DATABASE_URL not set any database connections will fail!")
 
 # helper functions
 
@@ -141,7 +128,6 @@ def game():
                     
                     return json_ok(results[0])
                 except Exception as e:
-                    dbConn.cancel()
                     return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
             else:
                 return json_error("no update key specified")
@@ -396,7 +382,6 @@ def reset():
         else:
             return json_error("",internal_message="Opportunistic reset attempt")
     except Exception as e:
-        dbConn.cancel()
         return json_error("",internal_message="Reset Error: {}".format(str(e)))
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
@@ -417,7 +402,6 @@ def init_db_tables():
         else:
             return json_error("",internal_message="Opportunistic init attempt")
     except Exception as e:
-        dbConn.cancel()
         return json_error("",internal_message="Init Error: {}".format(str(e)))
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
