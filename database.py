@@ -480,10 +480,15 @@ def init_tables(admin_key:str):
     __assert_admin_key(admin_key)
     __assert_can_do_major_db_changes()
     table_definition = [
+        # initial 1.0 tables
         'CREATE TABLE IF NOT EXISTS {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
         'create unique index if not exists {}_code on {} using btree (code);'.format(true_tablename('games')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users')),
+        # tables for user auth
+        'create extension if not exists pgcrypto;',
+        'Create Table If Not Exists {identity} (id serial, email varchar(255), name varchar(30),register_date timestamp Not Null Default NOW(), verify_date timestamp);'.format(true_tablename(identity='identities')),
+        'Create Table If Not Exists {session} (id uuid, verify_hash text,secret_hash text,identity_id int default -1,last_date date Default NOW());'.format(true_tablename(session='sessions')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
