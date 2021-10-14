@@ -382,7 +382,7 @@ def reset():
         else:
             return json_error("",internal_message="Opportunistic reset attempt")
     except Exception as e:
-        return json_error("",internal_message="Reset Error: {}".format(str(e)))
+        return json_error("",internal_message="Reset Error: {}".format(exception_as_string(e)))
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
 
@@ -397,12 +397,12 @@ def init_db_tables():
         except Exception as e:
             return json_error("Post Data malformed.")
         if 'admin_key' in post_data:
-            init_result = 'not implemented' #database.reset_all_tables(post_data['admin_key'])
+            init_result = database.init_tables(post_data['admin_key'])
             return json_ok( init_result )
         else:
             return json_error("",internal_message="Opportunistic init attempt")
     except Exception as e:
-        return json_error("",internal_message="Init Error: {}".format(str(e)))
+        return json_error("",internal_message="Init Error: {}".format(exception_as_string(e)))
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
 

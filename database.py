@@ -481,6 +481,7 @@ def init_tables(admin_key:str):
     __assert_can_do_major_db_changes()
     table_definition = [
         'CREATE TABLE IF NOT EXISTS {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
+        'create unique index if not exists {}_code on {} using btree (code);'
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users'))
     ]
