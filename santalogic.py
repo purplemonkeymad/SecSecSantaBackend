@@ -7,6 +7,8 @@ import database
 
 import string
 import random
+import uuid
+import re
 
 import SantaErrors
 
@@ -15,6 +17,11 @@ import traceback
 __password_pool = list( string.ascii_letters + string.digits )
 def __new_password(length=8):
     temp_pass = random.choices(__password_pool,k=length)
+    return ''.join(temp_pass)
+
+__verify_pool = list( string.digits )
+def __new_verify(length=6):
+    temp_pass = random.choices(__verify_pool,k=length)
     return ''.join(temp_pass)
 
 def __chunks(lst, n):
@@ -142,3 +149,43 @@ def __run_game(code:str,secret:str):
     database.set_game_state(code,secret,1)
 
     print("Gamerun: {gameid}, Complete".format(gameid=code))
+
+
+#####################
+# login logic
+#####################
+
+def new_session(email:str):
+    """
+    create a new session id an verify code from an email address
+    will error if user not registered
+    """
+
+    verify_code = __new_verify()
+    session_id = str(uuid.uuid4())
+    new_session_data = database.new_session(session_id,email,verify_code)
+    if len(new_session_data) == 0:
+        raise Exception("Need registration")
+    
+    # need to both send session id back to 
+    # web client & send code via email
+
+    # TODO send via email
+
+    return {
+        'session':session_id,
+    }
+
+def register_new_user(email:str,name:str):
+    """
+    Create a new user id and attempt a logon
+    """
+
+    # if has an at sign and at least one char each side, could be an email, accept it.
+    if re.match('.+@.+',email) == None:
+        # fails to match
+        raise Exception("Not a valid email address.")
+    
+    database.register_user(email,name)
+    return new_session(email)
+    

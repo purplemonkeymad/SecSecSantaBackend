@@ -487,11 +487,58 @@ def init_tables(admin_key:str):
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users')),
         # tables for user auth
         'create extension if not exists pgcrypto;',
-        'Create Table If Not Exists {identity} (id serial, email varchar(255), name varchar(30),register_date timestamp Not Null Default NOW(), verify_date timestamp);'.format(true_tablename(identity='identities')),
-        'Create Table If Not Exists {session} (id uuid, verify_hash text,secret_hash text,identity_id int default -1,last_date date Default NOW());'.format(true_tablename(session='sessions')),
+        'Create Table If Not Exists {identity} (id serial PRIMARY KEY, email varchar(255), name varchar(30),register_date timestamp Not Null Default NOW(), verify_date timestamp);'.format(identity=true_tablename('identities')),
+        """
+        Create Table If Not Exists {session} (
+            id uuid, 
+            verify_hash text,
+            secret_hash text,
+            identity_id not null,
+            last_date date Default NOW(),
+            CONSTRAINT fk_identity_id
+                FOREIGN KEY(identity_id)
+                REFERENCES {identity}(id)
+                ON DELETE CASCADE
+        );
+        """.format(session=true_tablename('sessions'),identity=true_tablename('identities')),
+        'create unique index if not exists {session}_uuid on {session} using btree (uuid);'.format(session=true_tablename('sessions')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
             cursor.execute(table,{})
         __dbConn.commit()
         return {'initstatus':'ok'}
+
+###################################
+# Login funcs
+###################################
+
+def new_session(uuid:str, email:str, verify_code:str):
+    """
+    Create a new session for a user
+    """
+
+    new_session_query = """
+    INSERT INTO {session} (id,verify_hash,secret_hash,identity_id,last_date)
+        SELECT %(uuid)s,crypt(%(code)s, gen_salt('bf')),NULL,{identity}.id,NOW()
+        FROM {identity} WHERE {identity}.email = %(email)s
+    RETURNING {session}.id,{session}.last_date,{identity}.email;
+    """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})
+        return cursor.fetchall()
+
+
+def register_user(email:str,name:str):
+    """
+    Create an identity for an email so new session can be created.
+    """
+
+    new_user = """
+    INSERT into {identity}(id,email,name,register_date) 
+    Values (DEFAULT,%(email)s,%(name)s,NOW())
+    RETURNING id,email,name;
+    """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(new_user,{'name':name,'email':email})
+        return cursor.fetchall()
