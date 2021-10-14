@@ -182,7 +182,7 @@ def register_new_user(email:str,name:str):
     """
 
     # if has an at sign and at least one char each side, could be an email, accept it.
-    if re.match('.+@.+',email) == None:
+    if re.search('.+@.+',email) == None:
         # fails to match
         raise Exception("Not a valid email address.")
     
