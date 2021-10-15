@@ -542,3 +542,10 @@ def register_user(email:str,name:str):
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(new_user,{'name':name,'email':email})
         return cursor.fetchall()
+
+def get_registered_user(email:str):
+    """
+    Check the id of a user from an email.
+    """
+    valid_columns = ['id','email','register_date','verify_date']
+    return __get_simple_table('identities',valid_columns=valid_columns,columns_to_get=valid_columns,column_query={'email':email})

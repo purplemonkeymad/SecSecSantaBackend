@@ -187,6 +187,11 @@ def register_new_user(email:str,name:str):
         # fails to match
         raise Exception("Not a valid email address.")
     
+    # error if already registered
+    check_user = database.get_registered_user(email)
+    if len(check_user) > 0:
+        raise Exception("Already registered.")
+
     database.register_user(email,name)
     return new_session(email)
     
