@@ -482,7 +482,7 @@ def init_tables(admin_key:str):
     table_definition = [
         # initial 1.0 tables
         'CREATE TABLE IF NOT EXISTS {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-        'create unique index if not exists {}_code on {} using btree (code);'.format(true_tablename('games')),
+        'create unique index if not exists {games}_code on {games} using btree (code);'.format(games=true_tablename('games')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users')),
         # tables for user auth
@@ -493,7 +493,7 @@ def init_tables(admin_key:str):
             id uuid, 
             verify_hash text,
             secret_hash text,
-            identity_id not null,
+            identity_id int not null,
             last_date date Default NOW(),
             CONSTRAINT fk_identity_id
                 FOREIGN KEY(identity_id)
@@ -501,7 +501,7 @@ def init_tables(admin_key:str):
                 ON DELETE CASCADE
         );
         """.format(session=true_tablename('sessions'),identity=true_tablename('identities')),
-        'create unique index if not exists {session}_uuid on {session} using btree (uuid);'.format(session=true_tablename('sessions')),
+        'create unique index if not exists {session}_uuid on {session} using btree (id);'.format(session=true_tablename('sessions')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
@@ -522,7 +522,7 @@ def new_session(uuid:str, email:str, verify_code:str):
     INSERT INTO {session} (id,verify_hash,secret_hash,identity_id,last_date)
         SELECT %(uuid)s,crypt(%(code)s, gen_salt('bf')),NULL,{identity}.id,NOW()
         FROM {identity} WHERE {identity}.email = %(email)s
-    RETURNING {session}.id,{session}.last_date,{identity}.email;
+    RETURNING {session}.id,{session}.last_date;
     """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})

@@ -406,6 +406,77 @@ def init_db_tables():
     # due to the nature of the interface no error messages are currently returned.
     return json_error("Not Implemented")
 
+
+#########################
+# Login endpoints
+#########################
+
+# email registration
+@app.route('/auth/register',methods=['POST'])
+def auth_register():
+    """
+    API endpoint for email sign-up
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
+        # check we have required keys
+        required_keys = ['email','name']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        
+        # try registration
+        try:
+            trim_name = post_data['name'].strip()
+            trim_email = post_data['email'].strip()
+
+            result = santalogic.register_new_user(trim_email,trim_name)
+            if len(result) == 0:
+                return json_error("Unable to register.",internal_message="Registration Failure: no results from function.")
+            return json_ok(result)
+        except Exception as e:
+            return json_error("Unable to register {}".format(str(e)))
+    except Exception as e:
+        return json_error("Internal Error",internal_message="Registration Error: {}".format(exception_as_string(e)))
+
+# email registration
+@app.route('/auth/new_session',methods=['POST'])
+def auth_new_session():
+    """
+    API endpoint for starting a sign in
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
+        # check we have required keys
+        required_keys = ['email']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("","A required Key is missing {}".format(missing_keys))
+        
+        # try registration
+        try:
+            trim_email = post_data['email'].strip()
+
+            result = santalogic.new_session(trim_email)
+            if len(result) == 0:
+                return json_error("Unable to sign-in.",internal_message="New Session Failure: no results from function.")
+            return json_ok(result[0])
+        except Exception as e:
+            return json_error("Unable to sign-in {}".format(str(e)))
+    except Exception as e:
+        return json_error("Internal Error",internal_message="New Session Error: {}".format(exception_as_string(e)))
+    
+
+#########################
+# Init
+#########################
+
 # For dev local runs, start flask in python process.
 if __name__ == '__main__':
     port = int(os.environ.get('PORT',5000))

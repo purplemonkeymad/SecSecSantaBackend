@@ -174,6 +174,7 @@ def new_session(email:str):
 
     return {
         'session':session_id,
+        'tempverify':verify_code,
     }
 
 def register_new_user(email:str,name:str):
