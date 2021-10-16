@@ -21,3 +21,8 @@ class GameChangeStateError(Exception):
     """
     Indicates error when changing the state of a game.
     """
+
+class SessionError(Exception):
+    """
+    Errors for Session management.
+    """

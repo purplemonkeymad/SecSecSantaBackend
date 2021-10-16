@@ -165,7 +165,7 @@ def new_session(email:str):
     session_id = str(uuid.uuid4())
     new_session_data = database.new_session(session_id,email,verify_code)
     if len(new_session_data) == 0:
-        raise Exception("Need registration")
+        raise SantaErrors.SessionError("Need registration")
     
     # need to both send session id back to 
     # web client & send code via email
@@ -185,12 +185,12 @@ def register_new_user(email:str,name:str):
     # if has an at sign and at least one char each side, could be an email, accept it.
     if re.search('.+@.+',email) == None:
         # fails to match
-        raise Exception("Not a valid email address.")
+        raise SantaErrors.SessionError("Not a valid email address.")
     
     # error if already registered
     check_user = database.get_registered_user(email)
     if len(check_user) > 0:
-        raise Exception("Already registered.")
+        raise SantaErrors.SessionError("Already registered.")
 
     database.register_user(email,name)
     return new_session(email)

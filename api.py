@@ -437,8 +437,10 @@ def auth_register():
             if len(result) == 0:
                 return json_error("Unable to register.",internal_message="Registration Failure: no results from function.")
             return json_ok(result)
-        except Exception as e:
+        except SantaErrors.SessionError as e:
             return json_error("Unable to register {}".format(str(e)))
+        except Exception as e:
+            return json_error("Unable to register, internal error.","Registration Error: {}".format(exception_as_string(e)))
     except Exception as e:
         return json_error("Internal Error",internal_message="Registration Error: {}".format(exception_as_string(e)))
 
@@ -467,8 +469,10 @@ def auth_new_session():
             if len(result) == 0:
                 return json_error("Unable to sign-in.",internal_message="New Session Failure: no results from function.")
             return json_ok(result[0])
-        except Exception as e:
+        except SantaErrors.SessionError as e:
             return json_error("Unable to sign-in {}".format(str(e)))
+        except Exception as e:
+            return json_error("unable to sign-in, internal error.","New Session Failure: {}".format(exception_as_string(e)))
     except Exception as e:
         return json_error("Internal Error",internal_message="New Session Error: {}".format(exception_as_string(e)))
     
