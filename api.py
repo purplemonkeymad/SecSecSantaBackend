@@ -468,7 +468,7 @@ def auth_new_session():
             result = santalogic.new_session(trim_email)
             if len(result) == 0:
                 return json_error("Unable to sign-in.",internal_message="New Session Failure: no results from function.")
-            return json_ok(result[0])
+            return json_ok(result)
         except SantaErrors.SessionError as e:
             return json_error("Unable to sign-in {}".format(str(e)))
         except Exception as e:
@@ -476,6 +476,39 @@ def auth_new_session():
     except Exception as e:
         return json_error("Internal Error",internal_message="New Session Error: {}".format(exception_as_string(e)))
     
+# email confirm + store local secret
+@app.route('/auth/verify_session',methods=['POST'])
+def verify_session():
+    """
+    API endpoint for verifying as session is a user.
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
+        # check we have required keys
+        required_keys = ['session','code','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("","A required Key is missing {}".format(missing_keys))
+        
+        # try verify
+        try:
+            trim_session = post_data['session'].strip()
+            trim_code = post_data['code'].strip()
+
+            result = santalogic.verify_session(trim_session,trim_code,post_data['secret'])
+            if len(result) == 0:
+                return json_error("Unable to Verify","Verify Error: Empty data from logic function call.")
+            
+            return json_ok(result)
+        except SantaErrors.SessionError as e:
+            return json_error("Unable to Verify: {}".format(str(e)))
+        except Exception as e:
+            return json_error("Internal Error",internal_message="Verify Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error",internal_message="Verify Error: {}".format(exception_as_string(e)))
 
 #########################
 # Init

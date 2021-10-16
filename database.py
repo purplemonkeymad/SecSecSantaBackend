@@ -528,6 +528,22 @@ def new_session(uuid:str, email:str, verify_code:str):
         cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})
         return cursor.fetchall()
 
+def confirm_session(uuid:str, verify_code:str, new_secret:str):
+    """
+    Check and update the session to verify that the session is
+    good to use.
+    """
+
+    verify_session_query = """
+    UPDATE {session}
+    SET secret_hash = crypt(%(secret)s,gen_salt('bf')) , verify_hash = NULL , last_date = NOW()
+    WHERE id = %(uuid)s AND verify_hash = crypt(%(code)s,verify_hash)
+    RETURNING id,identity_id,last_date;
+    """.format(session=true_tablename('sessions'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(verify_session_query,{'uuid':uuid,'secret':new_secret,'code':verify_code})
+        return cursor.fetchall()
+
 
 def register_user(email:str,name:str):
     """

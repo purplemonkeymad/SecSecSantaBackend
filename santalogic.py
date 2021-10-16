@@ -166,6 +166,8 @@ def new_session(email:str):
     new_session_data = database.new_session(session_id,email,verify_code)
     if len(new_session_data) == 0:
         raise SantaErrors.SessionError("Need registration")
+    if isinstance(new_session_data,list):
+        new_session_data = new_session_data[0]
     
     # need to both send session id back to 
     # web client & send code via email
@@ -194,4 +196,27 @@ def register_new_user(email:str,name:str):
 
     database.register_user(email,name)
     return new_session(email)
+    
+def verify_session(sessionid:str,code:str,new_secret:str):
+    """
+    Verify the session with the sent code, a new secret
+    is needs for future use of this session.
+    """
+    if len(code) != 6:
+        raise SantaErrors.SessionError("Verify codes must be 6 charaters long.")
+    if len(new_secret) < 16:
+        raise SantaErrors.SessionError("New Secrets must be at least 16 charaters.")
+    try:
+        uuid.UUID(sessionid)
+    except ValueError as e:
+        raise SantaErrors.SessionError("Session ids must be a uuid format")
+
+    results = database.confirm_session(sessionid,code,new_secret)
+    if len(results) == 0:
+        raise SantaErrors.SessionError("Session id or verify code was not found.")
+    if isinstance(results,list):
+        results = results[0]
+    return {
+        'session':results['id'],
+    }
     
