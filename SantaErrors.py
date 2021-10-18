@@ -1,6 +1,8 @@
 """ Custom Errors for the SecSocSanta API
 """
 
+import traceback
+
 class AuthorizationError(Exception):
     pass
 
@@ -26,3 +28,6 @@ class SessionError(Exception):
     """
     Errors for Session management.
     """
+
+def exception_as_string(exception) -> str:
+    return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
