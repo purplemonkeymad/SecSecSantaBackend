@@ -502,6 +502,17 @@ def init_tables(admin_key:str):
         );
         """.format(session=true_tablename('sessions'),identity=true_tablename('identities')),
         'create unique index if not exists {session}_uuid on {session} using btree (id);'.format(session=true_tablename('sessions')),
+        # upgrade 1.0 tables with user columns
+        """
+        ALTER TABLE {games}
+        Add Column If Not Exists ownerid int default null,
+        ADD CONSTRAINT If Not Exists {games}_ownerid FOREIGN KEY (ownerid) REFERENCES {identity} (id);
+        """.format(games=true_tablename('games'),identity=true_tablename('identities')),
+        """
+        ALTER TABLE {users}
+        Add Column If Not Exists account_id int default null,
+        Add Constraint If Not Exists {users}_account_id Foreign Key (account_id) References {identity} (id);
+        """.format(users=true_tablename('users'),identity=true_tablename('identities')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
