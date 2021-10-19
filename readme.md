@@ -26,13 +26,17 @@ You can run this on your own Heroku by doing the following
         heroku create
         heroku addons:create heroku-postgresql:hobby-dev
 
-4. Set a admin key:
+4. Set configuration values key:
 
         heroku config:set AdminSecret=<yourlongsecretkey>
+        heroku config:set DATABASE_URL=<postgresql-dburl>
+        heroku config:set SENDGRIDAPIKEY=<sendgridkey>
 
 5. Init the databases:
 
-        PS> Invoke-RestMethod -Method POST -UseBasicParsing -URI https://your-app-name.herokuapp.com/reset -Body '{"admin_key": "<yourlongsecretkey>"}'
+        heroku config:set AllowTableTruncates=AllowTruncates
+        PS> Invoke-RestMethod -Method POST -UseBasicParsing -URI https://your-app-name.herokuapp.com/init_db_tables -Body '{"admin_key": "<yourlongsecretkey>"}'
+        heroku config:set AllowTableTruncates=NoTruncates
 
 (or your rest api client of choice)
 
