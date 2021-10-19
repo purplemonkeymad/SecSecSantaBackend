@@ -435,28 +435,28 @@ def set_game_state(code:str,secret:str,new_state:int):
 
 def get_all_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_open_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 0;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_complete_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 1;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_closed_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 2;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
