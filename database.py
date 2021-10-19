@@ -519,10 +519,16 @@ def new_session(uuid:str, email:str, verify_code:str):
     """
 
     new_session_query = """
+    WITH user_ident AS (
+        SELECT id,email,name
+        FROM {identity} WHERE {identity}.email = %(email)s
+    )
     INSERT INTO {session} (id,verify_hash,secret_hash,identity_id,last_date)
         SELECT %(uuid)s,crypt(%(code)s, gen_salt('bf')),NULL,{identity}.id,NOW()
         FROM {identity} WHERE {identity}.email = %(email)s
-    RETURNING {session}.id,{session}.last_date;
+    RETURNING {session}.id,{session}.last_date,
+        (SELECT email FROM user_ident),
+        (SELECT name FROM user_ident);
     """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})

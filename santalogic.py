@@ -11,6 +11,7 @@ import uuid
 import re
 
 import SantaErrors
+import santamail
 
 import traceback
 
@@ -172,11 +173,10 @@ def new_session(email:str):
     # need to both send session id back to 
     # web client & send code via email
 
-    # TODO send via email
+    santamail.send_logon_email(email,new_session_data['name'],verify_code)
 
     return {
         'session':session_id,
-        'tempverify':verify_code,
     }
 
 def register_new_user(email:str,name:str):

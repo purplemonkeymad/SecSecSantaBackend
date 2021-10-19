@@ -40,7 +40,8 @@ def resolve_template_file(filename:str,**template_values):
     resolve a template file with only a specific set of
     values
     """
-    template = jin_env.get_template(filename)
+    real_filename = "{}.html".format(filename)
+    template = jin_env.get_template(real_filename)
     return template.render(**template_values)
 
 def resolve_template(string:str,**template_values):
@@ -61,3 +62,10 @@ def send_email(to:str,subject:str,template_name:str,**template_values):
         html_content=resolve_template_file(template_name,**template_values)
     )
     __send_mail_message(new_email)
+
+def send_logon_email(email:str,display_name:str,code:str):
+    """
+    Send a logon email with the verification code.
+    """
+
+    send_email(email,"New Logon request for Secret Santa.",'Newlogin',name=display_name,code=code)
