@@ -494,7 +494,7 @@ def init_tables(admin_key:str):
             verify_hash text,
             secret_hash text,
             identity_id int not null,
-            last_date date Default NOW(),
+            last_date timestamp Default NOW(),
             CONSTRAINT fk_identity_id
                 FOREIGN KEY(identity_id)
                 REFERENCES {identity}(id)
@@ -546,9 +546,21 @@ def confirm_session(uuid:str, verify_code:str, new_secret:str):
     WHERE id = %(uuid)s AND verify_hash = crypt(%(code)s,verify_hash)
     RETURNING id,identity_id,last_date;
     """.format(session=true_tablename('sessions'))
+    update_verify_date = """
+    UPDATE {identity}
+    SET verify_date = NOW()
+    WHERE {identity}.id = %(ident)s
+    """.format(identity=true_tablename('identities'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(verify_session_query,{'uuid':uuid,'secret':new_secret,'code':verify_code})
-        return cursor.fetchall()
+        session_data = cursor.fetchall()
+        if type(session_data) == list:
+            if len(session_data) == 0:
+                return session_data # nothing done, so just return nothing
+            session_data = session_data[0]
+        cursor.execute(update_verify_date,{'ident':session_data['identity_id']})
+        return session_data
+        
 
 
 def register_user(email:str,name:str):
