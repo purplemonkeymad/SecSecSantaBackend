@@ -47,15 +47,16 @@ def create_privkey():
     """
     return __new_password(length=64)
 
-def create_game(name:str):
+def create_game(name:str,sessionid:str,sessionpassword:str):
     """Generate a new game
     """
     game_code = create_pubkey()
-    game_secret = create_privkey()
 
-    game = database.new_game(name,game_secret,game_code)[0]
+    game = database.new_game(name,game_code,sessionid,sessionpassword)
+    if isinstance(game,list):
+        game = game[0]
     # db and api have different key names.
-    return {'name':game['name'],'privkey':game['secret'],'pubkey':game['code']}
+    return {'name':game['name'],'pubkey':game['code']}
 
 # get game info from the code.
 # the function raises exceptions as a way of providing error failures.

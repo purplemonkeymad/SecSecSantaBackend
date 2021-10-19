@@ -236,12 +236,14 @@ def get_game_ideas(pubkey:str,privkey:str):
     })
     return __dbCursor.fetchall()
 
-def new_game(name:str,privkey:str,pubkey:str):
+def new_game(name:str,pubkey:str,sessionid:str,sessionpassword:str):
     """ Inserts a new game into the database.
     """
-    query = "INSERT INTO {} VALUES(DEFAULT,%(name)s,%(privkey)s,%(pubkey)s,0) RETURNING id,name,code,state,secret ;".format(true_tablename('games'))
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    query = "INSERT INTO {} (id,name,secret,code,state,ownerid) VALUES(DEFAULT,%(name)s,null,%(pubkey)s,0,%(userid)s) RETURNING id,name,code,state,ownerid ;".format(true_tablename('games'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(query,{'name':name,'privkey':privkey,'pubkey':pubkey})
+        cursor.execute(query,{'name':name,'userid':user['id'],'pubkey':pubkey})
         return cursor.fetchall()
 
 def join_game(user_name:str,pubkey:str):
@@ -505,13 +507,35 @@ def init_tables(admin_key:str):
         # upgrade 1.0 tables with user columns
         """
         ALTER TABLE {games}
-        Add Column If Not Exists ownerid int default null,
-        ADD CONSTRAINT If Not Exists {games}_ownerid FOREIGN KEY (ownerid) REFERENCES {identity} (id);
+        Add Column If Not Exists ownerid int default null;
+        """.format(games=true_tablename('games'),identity=true_tablename('identities')),
+        """
+        -- no if not exists for constraints
+        DO $$
+        begin
+            if not exists (select constraint_name 
+                        from information_schema.constraint_column_usage 
+                        where table_name = '{games}' and constraint_name = '{games}_ownerid' ) then
+                ALTER TABLE {games}
+                ADD CONSTRAINT {games}_ownerid FOREIGN KEY (ownerid) REFERENCES {identity} (id);
+            end if;
+        end $$;
         """.format(games=true_tablename('games'),identity=true_tablename('identities')),
         """
         ALTER TABLE {users}
-        Add Column If Not Exists account_id int default null,
-        Add Constraint If Not Exists {users}_account_id Foreign Key (account_id) References {identity} (id);
+        Add Column If Not Exists account_id int default null;
+        """.format(users=true_tablename('users'),identity=true_tablename('identities')),
+        """
+        -- no if not exists for constraints
+        DO $$
+        begin
+            if not exists (select constraint_name 
+                        from information_schema.constraint_column_usage 
+                        where table_name = '{users}' and constraint_name = '{users}_ownerid' ) then
+                ALTER TABLE {users}
+                Add Constraint {users}_account_id Foreign Key (account_id) References {identity} (id);
+            end if;
+        end $$;
         """.format(users=true_tablename('users'),identity=true_tablename('identities')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -594,3 +618,21 @@ def get_registered_user(email:str):
     """
     valid_columns = ['id','email','register_date','verify_date']
     return __get_simple_table('identities',valid_columns=valid_columns,columns_to_get=valid_columns,column_query={'email':email})
+
+def __authenticate_user(sessionid:str,sessionpassword:str):
+    """
+    Check user session is authenticated and get user.
+    """
+
+    get_user = """
+    SELECT {identity}.id,{identity}.name,{identity}.email
+    FROM {identity}
+        INNER JOIN {session}
+        ON {session}.identity_id = {identity}.id
+        WHERE {session}.id = %(uuid)s AND secret_hash = crypt(%(password)s,secret_hash)
+    """.format(identity=true_tablename('identities'),session=true_tablename('sessions'))
+    __dbCursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
+    if __dbCursor.rowcount == 0:
+        raise SantaErrors.SessionError("Session not found or wrong password.")
+    return __dbCursor.fetchone()
+    

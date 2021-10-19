@@ -292,21 +292,24 @@ def new():
             post_data = request.get_json(force=True)
         except:
             return json_error("POST data was not json or malformed.")
-        if 'name' in post_data:
-            if len(post_data['name']) > 0:
-                try:
-                    game_sig = santalogic.create_game(post_data['name'])
-                    if len(game_sig) == 0:
-                        return json_error("No game returned")
-                    else:
-                        return json_ok( game_sig )
-                except Exception as e:
-                    return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
-            else:
-                json_error( "Game name must not be empty." )
+        # check we have required keys
+        required_keys = ['name','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("","A required Key is missing {}".format(missing_keys))
+        if len(post_data['name']) > 0:
+            try:
+                # trim name
+                trimed_name = post_data['name']
+                game_sig = santalogic.create_game(trimed_name,post_data['session'],post_data['secret'])
+                if len(game_sig) == 0:
+                    return json_error("No game returned")
+                else:
+                    return json_ok( game_sig )
+            except Exception as e:
+                return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
         else:
-            # no name in data
-            return json_error( "'name' is a required value." )
+            json_error( "Game name must not be empty." )
     except Exception as e:
         return json_error("An Internal error occurred",internal_message="Uncaught Exception: {}".format(exception_as_string(e)))
 
