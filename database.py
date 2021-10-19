@@ -480,13 +480,106 @@ def init_tables(admin_key:str):
     __assert_admin_key(admin_key)
     __assert_can_do_major_db_changes()
     table_definition = [
+        # initial 1.0 tables
         'CREATE TABLE IF NOT EXISTS {} (id serial,name varchar(200),secret varchar(64),code varchar(8),state int);'.format(true_tablename('games')),
-        'create unique index if not exists {}_code on {} using btree (code);'.format(true_tablename('games')),
+        'create unique index if not exists {games}_code on {games} using btree (code);'.format(games=true_tablename('games')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,idea varchar(260),userid int DEFAULT -1);'.format(true_tablename('ideas')),
         'CREATE TABLE IF NOT EXISTS {} (id serial,game int,name varchar(30),santa int DEFAULT -1);'.format(true_tablename('users')),
+        # tables for user auth
+        'create extension if not exists pgcrypto;',
+        'Create Table If Not Exists {identity} (id serial PRIMARY KEY, email varchar(255), name varchar(30),register_date timestamp Not Null Default NOW(), verify_date timestamp);'.format(identity=true_tablename('identities')),
+        """
+        Create Table If Not Exists {session} (
+            id uuid, 
+            verify_hash text,
+            secret_hash text,
+            identity_id int not null,
+            last_date timestamp Default NOW(),
+            CONSTRAINT fk_identity_id
+                FOREIGN KEY(identity_id)
+                REFERENCES {identity}(id)
+                ON DELETE CASCADE
+        );
+        """.format(session=true_tablename('sessions'),identity=true_tablename('identities')),
+        'create unique index if not exists {session}_uuid on {session} using btree (id);'.format(session=true_tablename('sessions')),
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
             cursor.execute(table,{})
         __dbConn.commit()
         return {'initstatus':'ok'}
+
+###################################
+# Login funcs
+###################################
+
+def new_session(uuid:str, email:str, verify_code:str):
+    """
+    Create a new session for a user
+    """
+
+    new_session_query = """
+    WITH user_ident AS (
+        SELECT id,email,name
+        FROM {identity} WHERE {identity}.email = %(email)s
+    )
+    INSERT INTO {session} (id,verify_hash,secret_hash,identity_id,last_date)
+        SELECT %(uuid)s,crypt(%(code)s, gen_salt('bf')),NULL,{identity}.id,NOW()
+        FROM {identity} WHERE {identity}.email = %(email)s
+    RETURNING {session}.id,{session}.last_date,
+        (SELECT email FROM user_ident),
+        (SELECT name FROM user_ident);
+    """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})
+        return cursor.fetchall()
+
+def confirm_session(uuid:str, verify_code:str, new_secret:str):
+    """
+    Check and update the session to verify that the session is
+    good to use.
+    """
+
+    verify_session_query = """
+    UPDATE {session}
+    SET secret_hash = crypt(%(secret)s,gen_salt('bf')) , verify_hash = NULL , last_date = NOW()
+    WHERE id = %(uuid)s AND verify_hash = crypt(%(code)s,verify_hash)
+    RETURNING id,identity_id,last_date;
+    """.format(session=true_tablename('sessions'))
+    update_verify_date = """
+    UPDATE {identity}
+    SET verify_date = NOW()
+    WHERE {identity}.id = %(ident)s
+    """.format(identity=true_tablename('identities'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(verify_session_query,{'uuid':uuid,'secret':new_secret,'code':verify_code})
+        session_data = cursor.fetchall()
+        if type(session_data) == list:
+            if len(session_data) == 0:
+                return session_data # nothing done, so just return nothing
+            session_data = session_data[0]
+        cursor.execute(update_verify_date,{'ident':session_data['identity_id']})
+        return session_data
+        
+
+
+def register_user(email:str,name:str):
+    """
+    Create an identity for an email so new session can be created.
+    """
+
+    new_user = """
+    INSERT into {identity}(id,email,name,register_date) 
+    Values (DEFAULT,%(email)s,%(name)s,NOW())
+    RETURNING id,email,name;
+    """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(new_user,{'name':name,'email':email})
+        return cursor.fetchall()
+
+def get_registered_user(email:str):
+    """
+    Check the id of a user from an email.
+    """
+    valid_columns = ['id','email','register_date','verify_date']
+    return __get_simple_table('identities',valid_columns=valid_columns,columns_to_get=valid_columns,column_query={'email':email})

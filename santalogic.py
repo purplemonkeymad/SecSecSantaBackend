@@ -7,14 +7,22 @@ import database
 
 import string
 import random
+import uuid
+import re
 
 import SantaErrors
+import santamail
 
 import traceback
 
 __password_pool = list( string.ascii_letters + string.digits )
 def __new_password(length=8):
     temp_pass = random.choices(__password_pool,k=length)
+    return ''.join(temp_pass)
+
+__verify_pool = list( string.digits )
+def __new_verify(length=6):
+    temp_pass = random.choices(__verify_pool,k=length)
     return ''.join(temp_pass)
 
 def __chunks(lst, n):
@@ -142,3 +150,73 @@ def __run_game(code:str,secret:str):
     database.set_game_state(code,secret,1)
 
     print("Gamerun: {gameid}, Complete".format(gameid=code))
+
+
+#####################
+# login logic
+#####################
+
+def new_session(email:str):
+    """
+    create a new session id an verify code from an email address
+    will error if user not registered
+    """
+
+    verify_code = __new_verify()
+    session_id = str(uuid.uuid4())
+    new_session_data = database.new_session(session_id,email,verify_code)
+    if len(new_session_data) == 0:
+        raise SantaErrors.SessionError("Need registration")
+    if isinstance(new_session_data,list):
+        new_session_data = new_session_data[0]
+    
+    # need to both send session id back to 
+    # web client & send code via email
+
+    santamail.send_logon_email(email,new_session_data['name'],verify_code)
+
+    return {
+        'session':session_id,
+    }
+
+def register_new_user(email:str,name:str):
+    """
+    Create a new user id and attempt a logon
+    """
+
+    # if has an at sign and at least one char each side, could be an email, accept it.
+    if re.search('.+@.+',email) == None:
+        # fails to match
+        raise SantaErrors.SessionError("Not a valid email address.")
+    
+    # error if already registered
+    check_user = database.get_registered_user(email)
+    if len(check_user) > 0:
+        raise SantaErrors.SessionError("Already registered.")
+
+    database.register_user(email,name)
+    return new_session(email)
+    
+def verify_session(sessionid:str,code:str,new_secret:str):
+    """
+    Verify the session with the sent code, a new secret
+    is needs for future use of this session.
+    """
+    if len(code) != 6:
+        raise SantaErrors.SessionError("Verify codes must be 6 charaters long.")
+    if len(new_secret) < 16:
+        raise SantaErrors.SessionError("New Secrets must be at least 16 charaters.")
+    try:
+        uuid.UUID(sessionid)
+    except ValueError as e:
+        raise SantaErrors.SessionError("Session ids must be a uuid format")
+
+    results = database.confirm_session(sessionid,code,new_secret)
+    if len(results) == 0:
+        raise SantaErrors.SessionError("Session id or verify code was not found.")
+    if isinstance(results,list):
+        results = results[0]
+    return {
+        'session':results['id'],
+    }
+    
