@@ -17,27 +17,13 @@ import random
 import database
 import santalogic
 import SantaErrors
+from SantaErrors import exception_as_string
 
 app = Flask(__name__)
 
 # db setup
 
 # helper functions
-
-# keygen for secrets
-password_pool = list( string.ascii_letters + string.digits )
-def new_password(length=8):
-    temp_pass = random.choices(password_pool,k=length)
-    return ''.join(temp_pass)
-
-# get true table name
-def true_tablename(tablename):
-    if os.environ.get('IS_PROD',0) == 1:
-        table_prefix = "prod"
-    else:
-        table_prefix = "dev"
-    realm_name = "santa"
-    return "{}_{}_{}".format(table_prefix,realm_name,tablename)
 
 # wrapper for sending error messages
 def json_error(message,internal_message=''):
@@ -63,9 +49,6 @@ def json_ok(data_dict):
     resp.headers['Access-Control-Allow-Origin'] = os.environ.get('XSS-Origin','*')
     resp.headers['Content-Type'] = 'application/json'
     return resp
-
-def exception_as_string(exception) -> str:
-    return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
 
 # endpoints
 

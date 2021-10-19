@@ -11,6 +11,7 @@ import uuid
 import re
 
 import SantaErrors
+from SantaErrors import exception_as_string
 import santamail
 
 import traceback
@@ -28,9 +29,6 @@ def __new_verify(length=6):
 def __chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i+n]
-
-def __exception_as_string(exception) -> str:
-    return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
 
 def create_pubkey():
     """A new Short key
@@ -134,7 +132,7 @@ def __run_game(code:str,secret:str):
             database.set_user_santa(user['id'], last_user['id'],code,secret)
             last_user = user
     except Exception as e:
-        print("Gamerun: {gameid}, User update failure: {exception}".format(gameid=code,exception=__exception_as_string(e)))
+        print("Gamerun: {gameid}, User update failure: {exception}".format(gameid=code,exception=exception_as_string(e)))
         raise SantaErrors.GameChangeStateError("Unable to assign santas.")
 
     random.shuffle(all_ideas)
@@ -144,7 +142,7 @@ def __run_game(code:str,secret:str):
             for j in idea_chunks[i]:
                 database.set_idea_user(j['id'],all_users[i]['id'],code,secret)
     except Exception as e:
-        print("Gamerun: {gameid}, Idea update failure: {exception}".format(gameid=code,exception=__exception_as_string(e)))
+        print("Gamerun: {gameid}, Idea update failure: {exception}".format(gameid=code,exception=exception_as_string(e)))
         raise SantaErrors.GameChangeStateError("Unable to assign ideas")
     
     database.set_game_state(code,secret,1)
