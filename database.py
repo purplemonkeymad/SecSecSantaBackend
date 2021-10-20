@@ -531,7 +531,7 @@ def init_tables(admin_key:str):
         begin
             if not exists (select constraint_name 
                         from information_schema.constraint_column_usage 
-                        where table_name = '{users}' and constraint_name = '{users}_ownerid' ) then
+                        where table_name = '{users}' and constraint_name = '{users}_account_id' ) then
                 ALTER TABLE {users}
                 Add Constraint {users}_account_id Foreign Key (account_id) References {identity} (id);
             end if;
