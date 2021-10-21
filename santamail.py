@@ -30,7 +30,7 @@ def __send_mail_message(message:Mail):
     try:
         api_client = SendGridAPIClient(__get_sendgrid_api_key())
         result = api_client.send(message)
-        print("Email Send: {} {} {}".format(message.to,result.status_code,result.body))
+        print("Email Send: {} {} {}".format(message.personalizations,result.status_code,result.body))
     except Exception as e:
         print("Email Send Error: {}".format(SantaErrors.exception_as_string(e)))
         raise SantaErrors.SessionError("Unable to login at this time.")
