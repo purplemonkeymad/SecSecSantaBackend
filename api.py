@@ -177,37 +177,40 @@ def idea():
             return json_error("Group has not been rolled yet, nothing to get.")
     return json_error("Not sure what to do.")
 
-# user register and game results
-@app.route('/user',methods=['POST','GET'])
-def user():
+
+@app.route('/join_game',methods=['POST'])
+def join_game():
     # post is considered registering for a game
     #
-    # POST /user
-    #     {"code":<gamecode>,"name":<yourname>}
-    if request.method == 'POST':
+    # POST /join_game
+    #     {"code":<gamecode>,"name":<yourname>,'session':<sessionid>,'secret':<sessionsecret>}
+    try:
         try:
-            try:
-                post_data = request.get_json(force=True)
-            except:
-                return json_error("POST data was not json or malformed.")
-                    # check we have required keys
-            required_keys = ['name','code','session','secret']
-            missing_keys = [x for x in required_keys if x not in post_data]
-            if (len(missing_keys) > 0):
-                return json_error("A required Key is missing {}".format(missing_keys))
-            try:
-                result = santalogic.join_game(post_data['name'],post_data['code'],post_data['session'],post_data['secret'])
-                if len(result) == 0:
-                    return json_error("Internal Error","Join Error: No results from join function")
-                return json_ok (result)
-            except FileExistsError as e:
-                return json_error("{}".format(str(e)))
-            except SantaErrors.NotFound as e:
-                return json_error("{}".format(str(e)))
-            except Exception as e:
-                return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['name','code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        try:
+            result = santalogic.join_game(post_data['name'],post_data['code'],post_data['session'],post_data['secret'])
+            if len(result) == 0:
+                return json_error("Internal Error","Join Error: No results from join function")
+            return json_ok (result)
+        except FileExistsError as e:
+            return json_error("{}".format(str(e)))
+        except SantaErrors.NotFound as e:
+            return json_error("{}".format(str(e)))
         except Exception as e:
-            return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+            return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+
+# user register and game results
+@app.route('/user',methods=['GET'])
+def user():
     # get considered getting your results
     #
     # GET /user?code=<gamecode>&name=<name>
