@@ -95,23 +95,6 @@ def game():
                     return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
                 except Exception as e:
                     return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
-
-            elif 'auth' in post_data:
-                # not making a change just want to authenticate
-                if not 'secret' in post_data:
-                    return json_error("need secret to authenticate")
-                if not 'code' in post_data:
-                    return json_error("need code to modify game")
-
-                # get info:
-                try:
-                    results = database.get_game_sum(post_data['code'],post_data['secret'])
-                    if len(results) == 0:
-                        return json_error("Not found, or bad secret.")
-                    
-                    return json_ok(results[0])
-                except Exception as e:
-                    return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
             else:
                 return json_error("no update key specified")
         except KeyError as e:
