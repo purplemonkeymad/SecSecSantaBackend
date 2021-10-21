@@ -369,13 +369,13 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
 # all funcs should check the game secret is correct.
 #########################################################
 
-def get_game_sum(code:str,secret:str):
+def get_game_sum(code:str,sessionid:str,sessionpassword:str):
     """ Gets a summary of at game, can be used to check
     authentication.
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
 
     get_summary_query = """
     SELECT {games}.state,{games}.name,
@@ -386,12 +386,12 @@ def get_game_sum(code:str,secret:str):
         SELECT COUNT({ideas}.game) From {ideas} WHERE {ideas}.game = {games}.id
     ) AS ideas
     FROM {games}
-    WHERE {games}.secret = %(secret)s AND {games}.code = %(code)s;
+    WHERE {games}.ownerid = %(userid)s AND {games}.code = %(code)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
 
     __dbCursor.execute(get_summary_query,{
         'code':code,
-        'secret':secret,
+        'userid':user['id'],
     })
     return __dbCursor.fetchall()
 

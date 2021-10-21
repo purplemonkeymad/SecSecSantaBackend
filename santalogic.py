@@ -169,6 +169,16 @@ def join_game(user_name:str,code:str,sessionid:str,sessionpassword:str):
         'join_status':join_game['status'],
     }
 
+def get_game_sum(code:str,sessionid:str,sessionpassword:str):
+    """
+    Get a summary of a group status.
+    """
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
+
+    result = database.get_game_sum(code,sessionid,sessionpassword)
+
 #####################
 # login logic
 #####################

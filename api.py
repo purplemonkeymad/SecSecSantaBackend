@@ -122,6 +122,39 @@ def game():
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
 
+# /game_sum  :
+# retrive a summary of the game if you are the owner.
+# POST /game_sum
+#    {name: <name>, session: <sessionid>, secret: <sessionsecret>}
+#    Sets the game <name> to selected status, uses the secret to authenticate.
+@app.route('/game_sum', methods=['POST'])
+def game_sum():
+    # post to update a game status.
+    if request.method == 'POST':
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("invalid json data.")
+        if len(post_data) == 0:
+            return json_error("No Data sent in request")
+         # not making a change just want to authenticate
+        required_keys = ['code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+
+        # get info:
+        try:
+            results = database.get_game_sum(post_data['code'],post_data['session'],post_data['secret'])
+            if len(results) == 0:
+                return json_error("Not found, or bad secret.")
+            
+            return json_ok(results[0])
+        except SantaErrors.SessionError as e:
+            return json_error("Failed to get game: {}".format(str(e)))
+        except Exception as e:
+            return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
+
 # submit ideas
 # submit ideas for a game to allow for the draw.
 # POST
