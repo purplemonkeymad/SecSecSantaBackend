@@ -121,6 +121,10 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
 # external funcs
 #######################
 
+#######################
+# *User*
+#######################
+
 def get_users(query:dict, properties:list = ['id','name','game'] ):
     """ Gets a user from a game by id,game etc.
     """
@@ -204,6 +208,10 @@ def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
             __dbConn.commit()
             return
 
+#######################
+# *Game*
+#######################
+
 
 def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     """ Gets a game from id/code etc.
@@ -283,6 +291,10 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         })
         return cursor.fetchall()
         raise FileExistsError("Name already registered.")
+
+#######################
+# *idea*
+#######################
 
 def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
