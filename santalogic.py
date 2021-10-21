@@ -151,6 +151,24 @@ def __run_game(code:str,secret:str):
     print("Gamerun: {gameid}, Complete".format(gameid=code))
 
 
+def join_game(user_name:str,code:str,sessionid:str,sessionpassword:str):
+    """
+    Join a game as a user.
+    """
+    join_game = database.join_game(user_name,code,sessionid,sessionpassword)
+
+    if len(join_game) == 0:
+        raise SantaErrors.NotFound("Unable to locate game.")
+
+    if isinstance(join_game,list):
+        join_game = join_game[0]
+
+    return {
+        'name':join_game['name'],
+        'code':code,
+        'join_status':join_game['status'],
+    }
+
 #####################
 # login logic
 #####################

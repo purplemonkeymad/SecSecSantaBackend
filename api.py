@@ -190,16 +190,22 @@ def user():
                 post_data = request.get_json(force=True)
             except:
                 return json_error("POST data was not json or malformed.")
-            if all (property in post_data for property in ('name','code')):
-                try:
-                    database.join_game(post_data['name'],post_data['code'])
-                    return json_ok ({})
-                except FileExistsError as e:
-                    return json_error("{}".format(str(e)))
-                except Exception as e:
-                    return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
-            else:
-                return json_error("Name and code is required to register.")
+                    # check we have required keys
+            required_keys = ['name','code','session','secret']
+            missing_keys = [x for x in required_keys if x not in post_data]
+            if (len(missing_keys) > 0):
+                return json_error("A required Key is missing {}".format(missing_keys))
+            try:
+                result = santalogic.join_game(post_data['name'],post_data['code'],post_data['session'],post_data['secret'])
+                if len(result) == 0:
+                    return json_error("Internal Error","Join Error: No results from join function")
+                return json_ok (result)
+            except FileExistsError as e:
+                return json_error("{}".format(str(e)))
+            except SantaErrors.NotFound as e:
+                return json_error("{}".format(str(e)))
+            except Exception as e:
+                return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
         except Exception as e:
             return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
     # get considered getting your results
@@ -296,7 +302,7 @@ def new():
         required_keys = ['name','session','secret']
         missing_keys = [x for x in required_keys if x not in post_data]
         if (len(missing_keys) > 0):
-            return json_error("","A required Key is missing {}".format(missing_keys))
+            return json_error("A required Key is missing {}".format(missing_keys))
         if len(post_data['name']) > 0:
             try:
                 # trim name

@@ -246,56 +246,43 @@ def new_game(name:str,pubkey:str,sessionid:str,sessionpassword:str):
         cursor.execute(query,{'name':name,'userid':user['id'],'pubkey':pubkey})
         return cursor.fetchall()
 
-def join_game(user_name:str,pubkey:str):
+def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
     """ Inserts a new name into a game
     """
-    ## updated query needs updated db settings, TODO this later.
-    query = """
-        INSERT INTO {users} (game,name)
-            SELECT {games}.id,%(name)s
-                FROM {games} WHERE {games}.code = %(code)s
-        ON CONFLICT("name") DO NOTHING
-        RETURNING {users}.id,{users}.name,{users}.game
-    """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    check_query = """
-        SELECT {users}.name,code 
-        FROM {users}
-            INNER JOIN {games} ON {users}.game={games}.id 
-        WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
     register_query = """
-        INSERT INTO {users}(game,name)
-            SELECT {games}.id,%(name)s
-            FROM {games}
-            WHERE {games}.code = %(code)s AND
-            NOT EXISTS (
-                Select {users}.name,code FROM {users} 
-                    INNER JOIN {games} 
-                    ON {users}.game={games}.id 
-                WHERE {users}.name = %(name)s AND {games}.code = %(code)s
-            )
-        RETURNING {users}.id,{users}.name,{users}.game;
+    WITH r As(
+        Insert Into {users}(game,name,account_id)
+        Select {games}.id,%(name)s,%(userid)s
+        From {games}
+        WHERE {games}.code = %(code)s
+        On Conflict("game","account_id") Do Nothing
+        Returning {users}.id,{users}.name,{users}.game,{users}.account_id,'New'::text AS Status
+    )
+    SELECT * From r
+    Union
+        Select {users}.id,{users}.name,{users}.game,{users}.account_id,'Existing'::text As Status
+        From {users}
+        INNER Join {games} On {games}.id = {users}.game
+        Where {games}.code = %(code)s And {users}.account_id = %(userid)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'))
-                        
-
+    
     # we should trim the name at this point
     clean_name = user_name.strip()
+    if len(clean_name) == 0:
+        clean_name = user['name']
 
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(check_query,{
+        cursor.execute(register_query,{
             'name':clean_name,
             'code':pubkey,
+            'userid':user['id'],
         })
-        result = cursor.fetchall()
-        if len(result) == 0:
-            # no matching item insert item
-            cursor.execute(register_query,{
-                'name':clean_name,
-                'code':pubkey,
-            })
-            return cursor.fetchall()
-        else:
-            raise FileExistsError("Name already registered.")
+        return cursor.fetchall()
+        raise FileExistsError("Name already registered.")
 
 def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
@@ -515,7 +502,7 @@ def init_tables(admin_key:str):
         begin
             if not exists (select constraint_name 
                         from information_schema.constraint_column_usage 
-                        where table_name = '{games}' and constraint_name = '{games}_ownerid' ) then
+                        where table_name = '{identity}' and constraint_name = '{games}_ownerid' ) then
                 ALTER TABLE {games}
                 ADD CONSTRAINT {games}_ownerid FOREIGN KEY (ownerid) REFERENCES {identity} (id);
             end if;
@@ -531,12 +518,13 @@ def init_tables(admin_key:str):
         begin
             if not exists (select constraint_name 
                         from information_schema.constraint_column_usage 
-                        where table_name = '{users}' and constraint_name = '{users}_account_id' ) then
+                        where table_name = '{identity}' and constraint_name = '{users}_account_id' ) then
                 ALTER TABLE {users}
                 Add Constraint {users}_account_id Foreign Key (account_id) References {identity} (id);
             end if;
         end $$;
         """.format(users=true_tablename('users'),identity=true_tablename('identities')),
+        "create unique index if not exists {users}_game_account on {users} using btree (game,account_id);".format(users=true_tablename('users'))
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:

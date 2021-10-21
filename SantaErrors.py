@@ -29,5 +29,8 @@ class SessionError(Exception):
     Errors for Session management.
     """
 
+class NotFound(Exception):
+    pass
+
 def exception_as_string(exception) -> str:
     return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
