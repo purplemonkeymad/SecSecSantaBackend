@@ -302,10 +302,14 @@ def get_idea(query:dict, properties:list = ['id','game','idea']):
     valid_properties = ['id','game','idea','userid']
     return __get_simple_table('ideas',properties,query,valid_properties)
 
-def new_idea(pubkey:str,idea:str):
+def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
     """
     Add a new idea to a game
     """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
     query = """
         INSERT into {ideas}(game,idea) 
         SELECT {games}.id,%(idea)s 

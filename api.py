@@ -135,16 +135,18 @@ def idea():
                 post_data = request.get_json(force=True)
             except:
                 return json_error("POST data was not json or malformed.")
-            
-            required_field = ['code','idea']
-            if all(property in post_data for property in required_field):
-                try:
-                    database.new_idea(post_data['code'],post_data['idea'])
-                    return json_ok( {} )
-                except FileNotFoundError as e:
-                    return json_error(str(e))
-                except Exception as e:
-                    return json_error("Error adding idea","Idea Error: {}".format(exception_as_string(e)))
+                    # check we have required keys
+            required_keys = ['idea','code','session','secret']
+            missing_keys = [x for x in required_keys if x not in post_data]
+            if (len(missing_keys) > 0):
+                return json_error("A required Key is missing {}".format(missing_keys))
+            try:
+                database.new_idea(post_data['code'],post_data['idea'],post_data['session'],post_data['secret'])
+                return json_ok( {} )
+            except FileNotFoundError as e:
+                return json_error(str(e))
+            except Exception as e:
+                return json_error("Error adding idea","Idea Error: {}".format(exception_as_string(e)))
 
         except:
             return json_error("Internal Error.","Idea POST error: {}".format(exception_as_string(e)))
