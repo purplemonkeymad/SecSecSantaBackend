@@ -41,7 +41,9 @@ class SessionError(PublicError):
     """
 
 class NotFound(PublicError):
-    pass
+    """
+    A generic not found class for public messages about missing objects, i.e. bad group ids etc.
+    """
 
 def exception_as_string(exception) -> str:
     return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
