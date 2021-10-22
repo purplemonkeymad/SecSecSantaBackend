@@ -84,6 +84,8 @@ def update_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     owner = database.get_authenticated_user(sessionid,sessionpassword)
 
     current_game = database.get_game({'code':code,'ownerid':owner['id']})
+    if len(current_game) == 0:
+        raise SantaErrors.GameChangeStateError("Game not found or not owned.")
     if isinstance(current_game,list):
         current_game = current_game[0]
     current_state = current_game['state']
