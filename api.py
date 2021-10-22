@@ -79,26 +79,22 @@ def game():
             return json_error("invalid json data.")
         if len(post_data) == 0:
             return json_error("No Data sent in request")
-        try:
-            if 'state' in post_data:
-                if not 'secret' in post_data:
-                    return json_error("need secret to modify game")
-                if not 'code' in post_data:
-                    return json_error("need code to modify game")
+        
+        required_keys = ['code','session','secret','state']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
 
-                try:
-                    santalogic.update_game_state(post_data['code'],post_data['secret'],post_data['state'])
-                    return json_ok({})
-                except SantaErrors.GameChangeStateError as e:
-                    return json_error(str(e))
-                except SantaErrors.GameStateError as e:
-                    return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
-                except Exception as e:
-                    return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
-            else:
-                return json_error("no update key specified")
-        except KeyError as e:
-            return json_error("missing key: {}".format(e.args[0]))
+        try:
+            try:
+                santalogic.update_game_state(post_data['code'],post_data['session'],post_data['secret'],post_data['state'])
+                return json_ok({})
+            except SantaErrors.GameChangeStateError as e:
+                return json_error(str(e))
+            except SantaErrors.GameStateError as e:
+                return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
+            except Exception as e:
+                return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
         except Exception as e:
             return json_error("Internal Error","Internal error on game: {}".format(exception_as_string(e)))
     

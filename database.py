@@ -11,6 +11,7 @@ other code mess with sql.
 # sql queries should be .format ed when created so that they choose dev/prod as needed.
 
 import os
+from re import S
 # database
 import urllib.parse
 import psycopg2
@@ -174,16 +175,23 @@ def get_user_ideas(user_name:str,game_id:int):
     __dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid': game_id })
     return __dbCursor.fetchall()
 
-def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
+def set_user_santa(user_id:str,santa_id:str,game_code:str,sessionid:str,sessionpassword:str):
     """
     Sets the santa of a user.
     """
+    
+    ## get logged on user details
+    owner = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(game_code) == 0):
+        raise ValueError("Gameid is empty.")
+    
     update_query = """
     WITH gameinfo AS (
         -- Get game by code and secret
         SELECT {games}.id as gameid
         FROM {games} 
-        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+        WHERE {games}.code = %(code)s AND {games}.ownerid = %(ownerid)s
     )
     UPDATE {users} 
     SET santa = %(santaid)s 
@@ -194,7 +202,7 @@ def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(update_query,{
             'code':game_code,
-            'secret':game_secret,
+            'ownerid':owner['id'],
             'userid':user_id,
             'santaid':santa_id,
         })
@@ -217,17 +225,19 @@ def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     """ Gets a game from id/code etc.
     """
     # valid properties
-    valid_properties = ['id','name','secret','code','state']
+    valid_properties = ['id','name','code','state','ownerid']
     return __get_simple_table('games',properties,query,valid_properties)
 
-def get_game_ideas(pubkey:str,privkey:str):
+def get_game_ideas(pubkey:str,sessionid:str,sessionpassword:str):
     """
     Gets ideas from a game code.
     """
-    if len(pubkey) == 0:
-        raise ValueError("Code is empty.")
-    if len(privkey) == 0:
-        raise ValueError("Secret is empty")
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(pubkey) == 0):
+        raise ValueError("Gameid is empty.")
 
     get_idea_query = """
     SELECT {ideas}.id,idea,game
@@ -235,12 +245,12 @@ def get_game_ideas(pubkey:str,privkey:str):
         INNER JOIN {games} 
         ON {games}.id = {ideas}.game
     WHERE {games}.code = %(code)s
-    AND {games}.secret = %(secret)s;
+    AND {games}.ownerid = %(userid)s;
     """.format(games=true_tablename('games'),ideas=true_tablename('ideas'))
 
     __dbCursor.execute(get_idea_query,{
         'code': pubkey,
-        'secret': privkey
+        'userid': user['id']
     })
     return __dbCursor.fetchall()
 
@@ -330,16 +340,23 @@ def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
             raise FileNotFoundError("Game not found.")
         return result
 
-def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
+def set_idea_user(idea_id:str,user_id:str,game_code:str,sessionid:str,sessionpassword:str):
     """
     Sets the idea of a user.
     """
+
+    ## get logged on user details
+    owner = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(game_code) == 0):
+        raise ValueError("Gameid is empty.")
+
     update_query = """
     WITH gameinfo AS (
         -- Get game by code and secret
         SELECT {games}.id as gameid
         FROM {games} 
-        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+        WHERE {games}.code = %(code)s AND {games}.ownerid = %(ownerid)s
     )
     UPDATE {ideas} 
     SET userid = %(userid)s 
@@ -350,7 +367,7 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(update_query,{
             'code':game_code,
-            'secret':game_secret,
+            'ownerid':owner['id'],
             'userid':user_id,
             'ideaid':idea_id,
         })
@@ -395,38 +412,44 @@ def get_game_sum(code:str,sessionid:str,sessionpassword:str):
     })
     return __dbCursor.fetchall()
 
-def get_users_in_game(code:str,secret:str):
+def get_users_in_game(code:str,sessionid:str,sessionpassword:str):
     """List of users that have joined a game
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
 
     get_userlist_query = """
-    SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
+    SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.ownerid = %(userid)s;
     """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_userlist_query,{'code':code,'secret':secret})
+    __dbCursor.execute(get_userlist_query,{'code':code,'userid':user['id']})
     return __dbCursor.fetchall()
 
-def set_game_state(code:str,secret:str,new_state:int):
+def set_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     """
     Updates the stored state value of a game.
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
     
     query = """
     UPDATE {games} SET state = %(state)s 
-    WHERE secret = %(secret)s AND code = %(code)s
+    WHERE ownerid = %(ownerid)s AND code = %(code)s
     RETURNING {games}.code,{games}.state;
     """.format(games=true_tablename('games'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(query,{
             'state': new_state,
             'code': code,
-            'secret': secret,
+            'ownerid': user['id'],
         })
         result = cursor.fetchall()
         if len(result) == 0:
@@ -640,3 +663,8 @@ def __authenticate_user(sessionid:str,sessionpassword:str):
         raise SantaErrors.SessionError("Session not found or wrong password.")
     return __dbCursor.fetchone()
     
+def get_authenticated_user(sessionid:str,sessionpassword:str):
+    """
+    get info about session user
+    """
+    return __authenticate_user(sessionid,sessionpassword)
