@@ -15,7 +15,9 @@ class PrivateError(Exception):
     """
 
 class AuthorizationError(PublicError):
-    pass
+    """
+    Public errors for permission issues.
+    """
 
 class ConfigurationError(PrivateError):
     """ Used to indicated errors due to the current
