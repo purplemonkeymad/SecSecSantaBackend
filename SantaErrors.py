@@ -16,17 +16,24 @@ class PrivateError(Exception):
 
 class AuthorizationError(PublicError):
     """
-    Public errors for permission issues.
+    Public error
+    
+    Used for permission issues.
     """
 
 class ConfigurationError(PrivateError):
-    """ Used to indicated errors due to the current
+    """ 
+    Private Error
+    
+    Used to indicated errors due to the current
     configuration of the application.
     """
     pass
 
 class GameStateError(PrivateError):
     """
+    Private Error
+
     Indicates issues with the current state of a 
     game.
     """
@@ -34,16 +41,22 @@ class GameStateError(PrivateError):
 
 class GameChangeStateError(PublicError):
     """
+    Public Error
+
     Indicates error when changing the state of a game.
     """
 
 class SessionError(PublicError):
     """
+    Public Error
+
     Errors for Session management.
     """
 
 class NotFound(PublicError):
     """
+    Public Error
+
     A generic not found class for public messages about missing objects, i.e. bad group ids etc.
     """
 
