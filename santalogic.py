@@ -47,15 +47,16 @@ def create_privkey():
     """
     return __new_password(length=64)
 
-def create_game(name:str):
+def create_game(name:str,sessionid:str,sessionpassword:str):
     """Generate a new game
     """
     game_code = create_pubkey()
-    game_secret = create_privkey()
 
-    game = database.new_game(name,game_secret,game_code)[0]
+    game = database.new_game(name,game_code,sessionid,sessionpassword)
+    if isinstance(game,list):
+        game = game[0]
     # db and api have different key names.
-    return {'name':game['name'],'privkey':game['secret'],'pubkey':game['code']}
+    return {'name':game['name'],'pubkey':game['code']}
 
 # get game info from the code.
 # the function raises exceptions as a way of providing error failures.
@@ -75,11 +76,18 @@ def get_game(code):
             raise Exception("Not Found")
         return game_list[0]
 
-def update_game_state(code:str,secret:str,new_state:int):
+def update_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     """
     Change the state of a game, moving it forward.
     """
-    current_game = database.get_game({'code':code,'secret':secret})[0]
+
+    owner = database.get_authenticated_user(sessionid,sessionpassword)
+
+    current_game = database.get_game({'code':code,'ownerid':owner['id']})
+    if len(current_game) == 0:
+        raise SantaErrors.GameChangeStateError("Game not found or not owned.")
+    if isinstance(current_game,list):
+        current_game = current_game[0]
     current_state = current_game['state']
 
     if current_state == 2:
@@ -92,7 +100,7 @@ def update_game_state(code:str,secret:str,new_state:int):
     elif current_state == 1:
         # a run game
         if new_state == 2:
-            return database.set_game_state(code,secret,new_state)
+            return database.set_game_state(code,sessionid,sessionpassword,new_state)
         elif new_state == 1:
             raise SantaErrors.GameChangeStateError("Game already resolved.")
         else:
@@ -101,26 +109,28 @@ def update_game_state(code:str,secret:str,new_state:int):
     elif current_state == 0:
         # is a new game
         if new_state == 2:
-            return database.set_game_state(code,secret,new_state)
+            return database.set_game_state(code,sessionid,sessionpassword,new_state)
         elif new_state == 0:
             raise SantaErrors.GameChangeStateError("Game already open.")
         elif new_state == 1:
-            return __run_game(code,secret)
+            return __run_game(code,sessionid,sessionpassword)
     else:
         raise SantaErrors.GameStateError("Game in unknown state {}, cannot change state.".format(str(current_state)))
 
-def __run_game(code:str,secret:str):
+def __run_game(code:str,sessionid:str,sessionpassword:str):
     # game has two parts, ideas, santas
     # each user is given another user to be santa of
     # each user is also given two unique ideas from the idea pool
     
+    owner = database.get_authenticated_user(sessionid,sessionpassword)
+
     #all users
-    all_users = database.get_users_in_game(code,secret)
+    all_users = database.get_users_in_game(code,sessionid,sessionpassword)
     if len(all_users) < 2:
         raise SantaErrors.GameChangeStateError("game requires more than 2 users to run.")
 
     # get ideas
-    all_ideas = database.get_game_ideas(code,secret)
+    all_ideas = database.get_game_ideas(code,sessionid,sessionpassword)
     if len(all_ideas) < len(all_users) * 2:
         raise SantaErrors.GameChangeStateError("game requires at least 2 ideas per user")
 
@@ -129,7 +139,7 @@ def __run_game(code:str,secret:str):
     try:
         last_user = all_users[-1]
         for user in all_users:
-            database.set_user_santa(user['id'], last_user['id'],code,secret)
+            database.set_user_santa(user['id'], last_user['id'],code,sessionid,sessionpassword)
             last_user = user
     except Exception as e:
         print("Gamerun: {gameid}, User update failure: {exception}".format(gameid=code,exception=exception_as_string(e)))
@@ -140,14 +150,83 @@ def __run_game(code:str,secret:str):
     try:
         for i in range(0, len(all_users)):
             for j in idea_chunks[i]:
-                database.set_idea_user(j['id'],all_users[i]['id'],code,secret)
+                database.set_idea_user(j['id'],all_users[i]['id'],code,sessionid,sessionpassword)
     except Exception as e:
         print("Gamerun: {gameid}, Idea update failure: {exception}".format(gameid=code,exception=exception_as_string(e)))
         raise SantaErrors.GameChangeStateError("Unable to assign ideas")
     
-    database.set_game_state(code,secret,1)
+    database.set_game_state(code,sessionid,sessionpassword,1)
 
     print("Gamerun: {gameid}, Complete".format(gameid=code))
+
+
+def join_game(user_name:str,code:str,sessionid:str,sessionpassword:str):
+    """
+    Join a game as a user.
+    """
+    join_game = database.join_game(user_name,code,sessionid,sessionpassword)
+
+    if len(join_game) == 0:
+        raise SantaErrors.NotFound("Unable to locate game.")
+
+    if isinstance(join_game,list):
+        join_game = join_game[0]
+
+    return {
+        'name':join_game['name'],
+        'code':code,
+        'join_status':join_game['status'],
+    }
+
+def get_game_sum(code:str,sessionid:str,sessionpassword:str):
+    """
+    Get a summary of a group status.
+    """
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
+
+    result = database.get_game_sum(code,sessionid,sessionpassword)
+    return result
+
+def get_game_results(code:str,sessionid:str,sessionpassword:str):
+    """
+    Get the assigned santa and ideas for a given game
+    """
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
+    
+    game = database.get_game({'code':code},['state'])
+    if isinstance(game,list):
+        game = game[0]
+    
+    if game['state'] == 0:
+        raise SantaErrors.GameStateError("Game not rolled, can't get results yet.")
+
+    if game['state'] == 1:
+        user = database.get_authenticated_user(sessionid,sessionpassword)
+
+        giftee = database.get_user_giftee(user['id'],code)
+        if isinstance(giftee,list):
+            giftee = giftee[0]
+        
+        ideas = database.get_user_ideas(user['id'],code)
+        idea_list = [x['idea'] for x in ideas]
+        if len(idea_list) == 0:
+            SantaErrors.GameStateError("No ideas assigned.")
+
+        return {
+            'giftee': giftee['giftee'],
+            'ideas': idea_list,
+            'code': code,
+        }
+
+    if game['state'] == 2:
+        raise SantaErrors.GameStateError("Game is closed.")
+    
+    print("Error: Game {} in invalid game state {}".format(code,game['state']))
+    raise SantaErrors.GameStateError("Unknown game state.")
 
 
 #####################

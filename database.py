@@ -11,6 +11,7 @@ other code mess with sql.
 # sql queries should be .format ed when created so that they choose dev/prod as needed.
 
 import os
+from re import S
 # database
 import urllib.parse
 import psycopg2
@@ -121,6 +122,10 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
 # external funcs
 #######################
 
+#######################
+# *User*
+#######################
+
 def get_users(query:dict, properties:list = ['id','name','game'] ):
     """ Gets a user from a game by id,game etc.
     """
@@ -128,58 +133,58 @@ def get_users(query:dict, properties:list = ['id','name','game'] ):
     valid_properties = ['id','name','game','santa']
     return __get_simple_table('users',properties,query,valid_properties)
 
-def get_user_giftee(user_name:str,game_id:int):
+def get_user_giftee(user_id:int,game_code:str):
     """ Gets the assigned recipient of a select user
     """
-    if len(user_name) == 0:
-        raise ValueError("Name is empty.")
-    if game_id < 1:
+
+    if len(game_code) == 0:
         raise ValueError("Game code is empty.")
 
     get_santainfo_query = """
     SELECT santa.name as name,giftees.name as giftee
     FROM {users} as santa
-    INNER JOIN {users} as giftees ON santa.santa = giftees.id
-    WHERE TRIM(from santa.name) = %(username)s AND santa.game = %(gameid)s;
-    """.format(users=true_tablename('users'))
+        INNER JOIN {users} as giftees ON santa.santa = giftees.id
+        INNER JOIN {games} as game On santa.game = game.id
+    WHERE santa.account_id = %(userid)s AND game.code = %(gameid)s;
+    """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    # we should trim the name at this point
-    clean_name = user_name.strip()
-
-    __dbCursor.execute(get_santainfo_query,{'username': clean_name, 'gameid':game_id })
+    __dbCursor.execute(get_santainfo_query,{'userid': user_id, 'gameid':game_code })
     return __dbCursor.fetchall()
 
-def get_user_ideas(user_name:str,game_id:int):
+def get_user_ideas(user_id:int,game_code:str):
     """ Gets the ideas assigned to a user
     """
 
-    if len(user_name) == 0:
-        raise ValueError("Name is empty.")
-    if game_id < 1:
-        raise ValueError("Game id is empty")
+    if len(game_code) == 0:
+        raise ValueError("Game code is empty.")
     
     get_idea_query = """
     SELECT idea FROM {ideas} 
-    INNER JOIN {users} ON {ideas}.userid = {users}.id
-    WHERE TRIM(from {users}.name) = %(username)s AND {users}.game = %(gameid)s;
-    """.format(users=true_tablename('users'),ideas=true_tablename('ideas'))
-    
-    # we should trim the name at this point
-    clean_name = user_name.strip()
+        INNER JOIN {users} ON {ideas}.userid = {users}.id
+        INNER JOIN {games} ON {users}.game = {games}.id
+    WHERE {users}.account_id = %(userid)s AND {games}.code = %(gameid)s;
+    """.format(users=true_tablename('users'),ideas=true_tablename('ideas'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid': game_id })
+    __dbCursor.execute(get_idea_query,{'userid': user_id, 'gameid': game_code })
     return __dbCursor.fetchall()
 
-def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
+def set_user_santa(user_id:str,santa_id:str,game_code:str,sessionid:str,sessionpassword:str):
     """
     Sets the santa of a user.
     """
+    
+    ## get logged on user details
+    owner = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(game_code) == 0):
+        raise ValueError("Gameid is empty.")
+    
     update_query = """
     WITH gameinfo AS (
         -- Get game by code and secret
         SELECT {games}.id as gameid
         FROM {games} 
-        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+        WHERE {games}.code = %(code)s AND {games}.ownerid = %(ownerid)s
     )
     UPDATE {users} 
     SET santa = %(santaid)s 
@@ -190,7 +195,7 @@ def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(update_query,{
             'code':game_code,
-            'secret':game_secret,
+            'ownerid':owner['id'],
             'userid':user_id,
             'santaid':santa_id,
         })
@@ -204,22 +209,28 @@ def set_user_santa(user_id:str,santa_id:str,game_code:str,game_secret:str):
             __dbConn.commit()
             return
 
+#######################
+# *Game*
+#######################
+
 
 def get_game(query:dict, properties:list = ['id','name','code','state'] ):
     """ Gets a game from id/code etc.
     """
     # valid properties
-    valid_properties = ['id','name','secret','code','state']
+    valid_properties = ['id','name','code','state','ownerid']
     return __get_simple_table('games',properties,query,valid_properties)
 
-def get_game_ideas(pubkey:str,privkey:str):
+def get_game_ideas(pubkey:str,sessionid:str,sessionpassword:str):
     """
     Gets ideas from a game code.
     """
-    if len(pubkey) == 0:
-        raise ValueError("Code is empty.")
-    if len(privkey) == 0:
-        raise ValueError("Secret is empty")
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(pubkey) == 0):
+        raise ValueError("Gameid is empty.")
 
     get_idea_query = """
     SELECT {ideas}.id,idea,game
@@ -227,73 +238,66 @@ def get_game_ideas(pubkey:str,privkey:str):
         INNER JOIN {games} 
         ON {games}.id = {ideas}.game
     WHERE {games}.code = %(code)s
-    AND {games}.secret = %(secret)s;
+    AND {games}.ownerid = %(userid)s;
     """.format(games=true_tablename('games'),ideas=true_tablename('ideas'))
 
     __dbCursor.execute(get_idea_query,{
         'code': pubkey,
-        'secret': privkey
+        'userid': user['id']
     })
     return __dbCursor.fetchall()
 
-def new_game(name:str,privkey:str,pubkey:str):
+def new_game(name:str,pubkey:str,sessionid:str,sessionpassword:str):
     """ Inserts a new game into the database.
     """
-    query = "INSERT INTO {} VALUES(DEFAULT,%(name)s,%(privkey)s,%(pubkey)s,0) RETURNING id,name,code,state,secret ;".format(true_tablename('games'))
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    query = "INSERT INTO {} (id,name,secret,code,state,ownerid) VALUES(DEFAULT,%(name)s,null,%(pubkey)s,0,%(userid)s) RETURNING id,name,code,state,ownerid ;".format(true_tablename('games'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(query,{'name':name,'privkey':privkey,'pubkey':pubkey})
+        cursor.execute(query,{'name':name,'userid':user['id'],'pubkey':pubkey})
         return cursor.fetchall()
 
-def join_game(user_name:str,pubkey:str):
+def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
     """ Inserts a new name into a game
     """
-    ## updated query needs updated db settings, TODO this later.
-    query = """
-        INSERT INTO {users} (game,name)
-            SELECT {games}.id,%(name)s
-                FROM {games} WHERE {games}.code = %(code)s
-        ON CONFLICT("name") DO NOTHING
-        RETURNING {users}.id,{users}.name,{users}.game
-    """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    check_query = """
-        SELECT {users}.name,code 
-        FROM {users}
-            INNER JOIN {games} ON {users}.game={games}.id 
-        WHERE {users}.name = %(name)s AND {games}.code = %(code)s;""".format(users=true_tablename('users'),games=true_tablename('games'))
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
     register_query = """
-        INSERT INTO {users}(game,name)
-            SELECT {games}.id,%(name)s
-            FROM {games}
-            WHERE {games}.code = %(code)s AND
-            NOT EXISTS (
-                Select {users}.name,code FROM {users} 
-                    INNER JOIN {games} 
-                    ON {users}.game={games}.id 
-                WHERE {users}.name = %(name)s AND {games}.code = %(code)s
-            )
-        RETURNING {users}.id,{users}.name,{users}.game;
+    WITH r As(
+        Insert Into {users}(game,name,account_id)
+        Select {games}.id,%(name)s,%(userid)s
+        From {games}
+        WHERE {games}.code = %(code)s
+        On Conflict("game","account_id") Do Nothing
+        Returning {users}.id,{users}.name,{users}.game,{users}.account_id,'New'::text AS Status
+    )
+    SELECT * From r
+    Union
+        Select {users}.id,{users}.name,{users}.game,{users}.account_id,'Existing'::text As Status
+        From {users}
+        INNER Join {games} On {games}.id = {users}.game
+        Where {games}.code = %(code)s And {users}.account_id = %(userid)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'))
-                        
-
+    
     # we should trim the name at this point
     clean_name = user_name.strip()
+    if len(clean_name) == 0:
+        clean_name = user['name']
 
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(check_query,{
+        cursor.execute(register_query,{
             'name':clean_name,
             'code':pubkey,
+            'userid':user['id'],
         })
-        result = cursor.fetchall()
-        if len(result) == 0:
-            # no matching item insert item
-            cursor.execute(register_query,{
-                'name':clean_name,
-                'code':pubkey,
-            })
-            return cursor.fetchall()
-        else:
-            raise FileExistsError("Name already registered.")
+        return cursor.fetchall()
+        raise FileExistsError("Name already registered.")
+
+#######################
+# *idea*
+#######################
 
 def get_idea(query:dict, properties:list = ['id','game','idea']):
     """ Gets ideas from game/id
@@ -301,10 +305,14 @@ def get_idea(query:dict, properties:list = ['id','game','idea']):
     valid_properties = ['id','game','idea','userid']
     return __get_simple_table('ideas',properties,query,valid_properties)
 
-def new_idea(pubkey:str,idea:str):
+def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
     """
     Add a new idea to a game
     """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
     query = """
         INSERT into {ideas}(game,idea) 
         SELECT {games}.id,%(idea)s 
@@ -325,16 +333,23 @@ def new_idea(pubkey:str,idea:str):
             raise FileNotFoundError("Game not found.")
         return result
 
-def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
+def set_idea_user(idea_id:str,user_id:str,game_code:str,sessionid:str,sessionpassword:str):
     """
     Sets the idea of a user.
     """
+
+    ## get logged on user details
+    owner = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(game_code) == 0):
+        raise ValueError("Gameid is empty.")
+
     update_query = """
     WITH gameinfo AS (
         -- Get game by code and secret
         SELECT {games}.id as gameid
         FROM {games} 
-        WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s
+        WHERE {games}.code = %(code)s AND {games}.ownerid = %(ownerid)s
     )
     UPDATE {ideas} 
     SET userid = %(userid)s 
@@ -345,7 +360,7 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(update_query,{
             'code':game_code,
-            'secret':game_secret,
+            'ownerid':owner['id'],
             'userid':user_id,
             'ideaid':idea_id,
         })
@@ -364,13 +379,13 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,game_secret:str):
 # all funcs should check the game secret is correct.
 #########################################################
 
-def get_game_sum(code:str,secret:str):
+def get_game_sum(code:str,sessionid:str,sessionpassword:str):
     """ Gets a summary of at game, can be used to check
     authentication.
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
 
     get_summary_query = """
     SELECT {games}.state,{games}.name,
@@ -381,47 +396,53 @@ def get_game_sum(code:str,secret:str):
         SELECT COUNT({ideas}.game) From {ideas} WHERE {ideas}.game = {games}.id
     ) AS ideas
     FROM {games}
-    WHERE {games}.secret = %(secret)s AND {games}.code = %(code)s;
+    WHERE {games}.ownerid = %(userid)s AND {games}.code = %(code)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
 
     __dbCursor.execute(get_summary_query,{
         'code':code,
-        'secret':secret,
+        'userid':user['id'],
     })
     return __dbCursor.fetchall()
 
-def get_users_in_game(code:str,secret:str):
+def get_users_in_game(code:str,sessionid:str,sessionpassword:str):
     """List of users that have joined a game
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
 
     get_userlist_query = """
-    SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.secret = %(secret)s;
+    SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.ownerid = %(userid)s;
     """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_userlist_query,{'code':code,'secret':secret})
+    __dbCursor.execute(get_userlist_query,{'code':code,'userid':user['id']})
     return __dbCursor.fetchall()
 
-def set_game_state(code:str,secret:str,new_state:int):
+def set_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     """
     Updates the stored state value of a game.
     """
 
-    if (len(code) == 0 or len(secret) ==0 ):
-        raise ValueError("Gameid or Secret are empty, both values are required.")
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
     
     query = """
     UPDATE {games} SET state = %(state)s 
-    WHERE secret = %(secret)s AND code = %(code)s
+    WHERE ownerid = %(ownerid)s AND code = %(code)s
     RETURNING {games}.code,{games}.state;
     """.format(games=true_tablename('games'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(query,{
             'state': new_state,
             'code': code,
-            'secret': secret,
+            'ownerid': user['id'],
         })
         result = cursor.fetchall()
         if len(result) == 0:
@@ -435,28 +456,28 @@ def set_game_state(code:str,secret:str,new_state:int):
 
 def get_all_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_open_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 0;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_complete_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 1;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
 
 def get_all_closed_games(admin_key:str):
     __assert_admin_key(admin_key)
-    properties = ['id','name','code','state']
+    properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 2;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
     __dbCursor.execute(user_query,{})
     return __dbCursor.fetchall()
@@ -502,6 +523,40 @@ def init_tables(admin_key:str):
         );
         """.format(session=true_tablename('sessions'),identity=true_tablename('identities')),
         'create unique index if not exists {session}_uuid on {session} using btree (id);'.format(session=true_tablename('sessions')),
+        # upgrade 1.0 tables with user columns
+        """
+        ALTER TABLE {games}
+        Add Column If Not Exists ownerid int default null;
+        """.format(games=true_tablename('games'),identity=true_tablename('identities')),
+        """
+        -- no if not exists for constraints
+        DO $$
+        begin
+            if not exists (select constraint_name 
+                        from information_schema.constraint_column_usage 
+                        where table_name = '{identity}' and constraint_name = '{games}_ownerid' ) then
+                ALTER TABLE {games}
+                ADD CONSTRAINT {games}_ownerid FOREIGN KEY (ownerid) REFERENCES {identity} (id);
+            end if;
+        end $$;
+        """.format(games=true_tablename('games'),identity=true_tablename('identities')),
+        """
+        ALTER TABLE {users}
+        Add Column If Not Exists account_id int default null;
+        """.format(users=true_tablename('users'),identity=true_tablename('identities')),
+        """
+        -- no if not exists for constraints
+        DO $$
+        begin
+            if not exists (select constraint_name 
+                        from information_schema.constraint_column_usage 
+                        where table_name = '{identity}' and constraint_name = '{users}_account_id' ) then
+                ALTER TABLE {users}
+                Add Constraint {users}_account_id Foreign Key (account_id) References {identity} (id);
+            end if;
+        end $$;
+        """.format(users=true_tablename('users'),identity=true_tablename('identities')),
+        "create unique index if not exists {users}_game_account on {users} using btree (game,account_id);".format(users=true_tablename('users'))
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
@@ -583,3 +638,26 @@ def get_registered_user(email:str):
     """
     valid_columns = ['id','email','register_date','verify_date']
     return __get_simple_table('identities',valid_columns=valid_columns,columns_to_get=valid_columns,column_query={'email':email})
+
+def __authenticate_user(sessionid:str,sessionpassword:str):
+    """
+    Check user session is authenticated and get user.
+    """
+
+    get_user = """
+    SELECT {identity}.id,{identity}.name,{identity}.email
+    FROM {identity}
+        INNER JOIN {session}
+        ON {session}.identity_id = {identity}.id
+        WHERE {session}.id = %(uuid)s AND secret_hash = crypt(%(password)s,secret_hash)
+    """.format(identity=true_tablename('identities'),session=true_tablename('sessions'))
+    __dbCursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
+    if __dbCursor.rowcount == 0:
+        raise SantaErrors.SessionError("Session not found or wrong password.")
+    return __dbCursor.fetchone()
+    
+def get_authenticated_user(sessionid:str,sessionpassword:str):
+    """
+    get info about session user
+    """
+    return __authenticate_user(sessionid,sessionpassword)

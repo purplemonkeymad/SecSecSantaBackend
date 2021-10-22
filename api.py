@@ -79,48 +79,60 @@ def game():
             return json_error("invalid json data.")
         if len(post_data) == 0:
             return json_error("No Data sent in request")
+        
+        required_keys = ['code','session','secret','state']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+
         try:
-            if 'state' in post_data:
-                if not 'secret' in post_data:
-                    return json_error("need secret to modify game")
-                if not 'code' in post_data:
-                    return json_error("need code to modify game")
-
-                try:
-                    santalogic.update_game_state(post_data['code'],post_data['secret'],post_data['state'])
-                    return json_ok({})
-                except SantaErrors.GameChangeStateError as e:
-                    return json_error(str(e))
-                except SantaErrors.GameStateError as e:
-                    return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
-                except Exception as e:
-                    return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
-
-            elif 'auth' in post_data:
-                # not making a change just want to authenticate
-                if not 'secret' in post_data:
-                    return json_error("need secret to authenticate")
-                if not 'code' in post_data:
-                    return json_error("need code to modify game")
-
-                # get info:
-                try:
-                    results = database.get_game_sum(post_data['code'],post_data['secret'])
-                    if len(results) == 0:
-                        return json_error("Not found, or bad secret.")
-                    
-                    return json_ok(results[0])
-                except Exception as e:
-                    return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
-            else:
-                return json_error("no update key specified")
-        except KeyError as e:
-            return json_error("missing key: {}".format(e.args[0]))
+            try:
+                santalogic.update_game_state(post_data['code'],post_data['session'],post_data['secret'],post_data['state'])
+                return json_ok({})
+            except SantaErrors.GameChangeStateError as e:
+                return json_error(str(e))
+            except SantaErrors.GameStateError as e:
+                return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
+            except Exception as e:
+                return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
         except Exception as e:
             return json_error("Internal Error","Internal error on game: {}".format(exception_as_string(e)))
     
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
+
+# /game_sum  :
+# retrive a summary of the game if you are the owner.
+# POST /game_sum
+#    {name: <name>, session: <sessionid>, secret: <sessionsecret>}
+#    Sets the game <name> to selected status, uses the secret to authenticate.
+@app.route('/game_sum', methods=['POST'])
+def game_sum():
+    # post to update a game status.
+    if request.method == 'POST':
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("invalid json data.")
+        if len(post_data) == 0:
+            return json_error("No Data sent in request")
+         # not making a change just want to authenticate
+        required_keys = ['code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+
+        # get info:
+        try:
+            results = database.get_game_sum(post_data['code'],post_data['session'],post_data['secret'])
+            if len(results) == 0:
+                return json_error("Not found, or bad secret.")
+            
+            return json_ok(results[0])
+        except SantaErrors.SessionError as e:
+            return json_error("Failed to get game: {}".format(str(e)))
+        except Exception as e:
+            return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
 
 # submit ideas
 # submit ideas for a game to allow for the draw.
@@ -135,16 +147,18 @@ def idea():
                 post_data = request.get_json(force=True)
             except:
                 return json_error("POST data was not json or malformed.")
-            
-            required_field = ['code','idea']
-            if all(property in post_data for property in required_field):
-                try:
-                    database.new_idea(post_data['code'],post_data['idea'])
-                    return json_ok( {} )
-                except FileNotFoundError as e:
-                    return json_error(str(e))
-                except Exception as e:
-                    return json_error("Error adding idea","Idea Error: {}".format(exception_as_string(e)))
+                    # check we have required keys
+            required_keys = ['idea','code','session','secret']
+            missing_keys = [x for x in required_keys if x not in post_data]
+            if (len(missing_keys) > 0):
+                return json_error("A required Key is missing {}".format(missing_keys))
+            try:
+                database.new_idea(post_data['code'],post_data['idea'],post_data['session'],post_data['secret'])
+                return json_ok( {} )
+            except FileNotFoundError as e:
+                return json_error(str(e))
+            except Exception as e:
+                return json_error("Error adding idea","Idea Error: {}".format(exception_as_string(e)))
 
         except:
             return json_error("Internal Error.","Idea POST error: {}".format(exception_as_string(e)))
@@ -177,79 +191,61 @@ def idea():
             return json_error("Group has not been rolled yet, nothing to get.")
     return json_error("Not sure what to do.")
 
-# user register and game results
-@app.route('/user',methods=['POST','GET'])
-def user():
+
+@app.route('/join_game',methods=['POST'])
+def join_game():
     # post is considered registering for a game
     #
-    # POST /user
-    #     {"code":<gamecode>,"name":<yourname>}
-    if request.method == 'POST':
+    # POST /join_game
+    #     {"code":<gamecode>,"name":<yourname>,'session':<sessionid>,'secret':<sessionsecret>}
+    try:
         try:
-            try:
-                post_data = request.get_json(force=True)
-            except:
-                return json_error("POST data was not json or malformed.")
-            if all (property in post_data for property in ('name','code')):
-                try:
-                    database.join_game(post_data['name'],post_data['code'])
-                    return json_ok ({})
-                except FileExistsError as e:
-                    return json_error("{}".format(str(e)))
-                except Exception as e:
-                    return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
-            else:
-                return json_error("Name and code is required to register.")
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['name','code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        try:
+            result = santalogic.join_game(post_data['name'],post_data['code'],post_data['session'],post_data['secret'])
+            if len(result) == 0:
+                return json_error("Internal Error","Join Error: No results from join function")
+            return json_ok (result)
+        except FileExistsError as e:
+            return json_error("{}".format(str(e)))
+        except SantaErrors.NotFound as e:
+            return json_error("{}".format(str(e)))
         except Exception as e:
-            return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+            return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+
+# user register and game results
+@app.route('/results',methods=['POST'])
+def results():
     # get considered getting your results
     #
     # GET /user?code=<gamecode>&name=<name>
     #
-    if request.method == 'GET':
-        get_code = request.args.get('code')
-        get_name = request.args.get('name')
-        try: 
-            game_result = santalogic.get_game(get_code)
-        except Exception as e:
-            return json_error(str(e))
-        
-        # 0 = open
-        if game_result['state'] == 0:
-            return json_error("Santas not yet assigned")
-        
-        # 1 = run
-        if game_result['state'] == 1:
-            # get santa info
-            try:
-                santa_data = database.get_user_giftee(get_name,game_result['id'])[0]
-                if len(santa_data) == 0:
-                    return json_error("Name or Giftee not found.")
-            except Exception as e:
-                return json_error("failed to get giftee information","Failed to get giftee information: {}".format(str(e)))
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
 
-            # get idea list
-            try:
-                idea_data = database.get_user_ideas(get_name,game_result['id'])
-                if len(idea_data) == 0:
-                    return json_error("Name or Ideas not found.")
-            except Exception as e:
-                return json_error("failed to get your ideas","Failed to get ideas: {}".format(str(e)))
-
-            idea_list = [x['idea'] for x in idea_data]
-
-            return json_ok({
-                'name': santa_data['name'],
-                'giftee': santa_data['giftee'],
-                'ideas': idea_list
-            })
-        # 2 = closed
-        if game_result['state'] == 2:
-            return json_error("group is closed")
-
-        return json_error("Not implemented")
-    # we shouldn't get here, but return a message just incase we do
-    return json_error("No sure what to do")
+        result = santalogic.get_game_results(post_data['code'],post_data['session'],post_data['secret'])
+        return json_ok( result )
+    except SantaErrors.GameStateError as e:
+        return json_error(str(e))
+    except Exception as e:
+        return json_error("Internal Error","Internal Error {}".format(exception_as_string(e)))
 
 # admin endpoints
 
@@ -292,21 +288,24 @@ def new():
             post_data = request.get_json(force=True)
         except:
             return json_error("POST data was not json or malformed.")
-        if 'name' in post_data:
-            if len(post_data['name']) > 0:
-                try:
-                    game_sig = santalogic.create_game(post_data['name'])
-                    if len(game_sig) == 0:
-                        return json_error("No game returned")
-                    else:
-                        return json_ok( game_sig )
-                except Exception as e:
-                    return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
-            else:
-                json_error( "Game name must not be empty." )
+        # check we have required keys
+        required_keys = ['name','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        if len(post_data['name']) > 0:
+            try:
+                # trim name
+                trimed_name = post_data['name']
+                game_sig = santalogic.create_game(trimed_name,post_data['session'],post_data['secret'])
+                if len(game_sig) == 0:
+                    return json_error("No game returned")
+                else:
+                    return json_ok( game_sig )
+            except Exception as e:
+                return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
         else:
-            # no name in data
-            return json_error( "'name' is a required value." )
+            json_error( "Game name must not be empty." )
     except Exception as e:
         return json_error("An Internal error occurred",internal_message="Uncaught Exception: {}".format(exception_as_string(e)))
 
