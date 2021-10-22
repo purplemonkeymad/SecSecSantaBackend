@@ -223,56 +223,29 @@ def join_game():
         return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
 
 # user register and game results
-@app.route('/user',methods=['GET'])
-def user():
+@app.route('/results',methods=['POST'])
+def results():
     # get considered getting your results
     #
     # GET /user?code=<gamecode>&name=<name>
     #
-    if request.method == 'GET':
-        get_code = request.args.get('code')
-        get_name = request.args.get('name')
-        try: 
-            game_result = santalogic.get_game(get_code)
-        except Exception as e:
-            return json_error(str(e))
-        
-        # 0 = open
-        if game_result['state'] == 0:
-            return json_error("Santas not yet assigned")
-        
-        # 1 = run
-        if game_result['state'] == 1:
-            # get santa info
-            try:
-                santa_data = database.get_user_giftee(get_name,game_result['id'])[0]
-                if len(santa_data) == 0:
-                    return json_error("Name or Giftee not found.")
-            except Exception as e:
-                return json_error("failed to get giftee information","Failed to get giftee information: {}".format(str(e)))
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
 
-            # get idea list
-            try:
-                idea_data = database.get_user_ideas(get_name,game_result['id'])
-                if len(idea_data) == 0:
-                    return json_error("Name or Ideas not found.")
-            except Exception as e:
-                return json_error("failed to get your ideas","Failed to get ideas: {}".format(str(e)))
-
-            idea_list = [x['idea'] for x in idea_data]
-
-            return json_ok({
-                'name': santa_data['name'],
-                'giftee': santa_data['giftee'],
-                'ideas': idea_list
-            })
-        # 2 = closed
-        if game_result['state'] == 2:
-            return json_error("group is closed")
-
-        return json_error("Not implemented")
-    # we shouldn't get here, but return a message just incase we do
-    return json_error("No sure what to do")
+        result = santalogic.get_game_results(post_data['code'],post_data['session'],post_data['secret'])
+        return json_ok( result )
+    except SantaErrors.GameStateError as e:
+        return json_error(str(e))
+    except Exception as e:
+        return json_error("Internal Error","Internal Error {}".format(exception_as_string(e)))
 
 # admin endpoints
 

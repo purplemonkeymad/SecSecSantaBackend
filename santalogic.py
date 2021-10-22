@@ -185,6 +185,47 @@ def get_game_sum(code:str,sessionid:str,sessionpassword:str):
         raise ValueError("Gameid is empty.")
 
     result = database.get_game_sum(code,sessionid,sessionpassword)
+    return result
+
+def get_game_results(code:str,sessionid:str,sessionpassword:str):
+    """
+    Get the assigned santa and ideas for a given game
+    """
+
+    if (len(code) == 0):
+        raise ValueError("Gameid is empty.")
+    
+    game = database.get_game({'code':code},['state'])
+    if isinstance(game,list):
+        game = game[0]
+    
+    if game['state'] == 0:
+        raise SantaErrors.GameStateError("Game not rolled, can't get results yet.")
+
+    if game['state'] == 1:
+        user = database.get_authenticated_user(sessionid,sessionpassword)
+
+        giftee = database.get_user_giftee(user['id'],code)
+        if isinstance(giftee,list):
+            giftee = giftee[0]
+        
+        ideas = database.get_user_ideas(user['id'],code)
+        idea_list = [x['idea'] for x in ideas]
+        if len(idea_list) == 0:
+            SantaErrors.GameStateError("No ideas assigned.")
+
+        return {
+            'giftee': giftee['giftee'],
+            'ideas': idea_list,
+            'code': code,
+        }
+
+    if game['state'] == 2:
+        raise SantaErrors.GameStateError("Game is closed.")
+    
+    print("Error: Game {} in invalid game state {}".format(code,game['state']))
+    raise SantaErrors.GameStateError("Unknown game state.")
+
 
 #####################
 # login logic

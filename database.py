@@ -133,46 +133,39 @@ def get_users(query:dict, properties:list = ['id','name','game'] ):
     valid_properties = ['id','name','game','santa']
     return __get_simple_table('users',properties,query,valid_properties)
 
-def get_user_giftee(user_name:str,game_id:int):
+def get_user_giftee(user_id:int,game_code:str):
     """ Gets the assigned recipient of a select user
     """
-    if len(user_name) == 0:
-        raise ValueError("Name is empty.")
-    if game_id < 1:
+
+    if len(game_code) == 0:
         raise ValueError("Game code is empty.")
 
     get_santainfo_query = """
     SELECT santa.name as name,giftees.name as giftee
     FROM {users} as santa
-    INNER JOIN {users} as giftees ON santa.santa = giftees.id
-    WHERE TRIM(from santa.name) = %(username)s AND santa.game = %(gameid)s;
-    """.format(users=true_tablename('users'))
+        INNER JOIN {users} as giftees ON santa.santa = giftees.id
+        INNER JOIN {games} as game On santa.game = game.id
+    WHERE santa.account_id = %(userid)s AND game.code = %(gameid)s;
+    """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    # we should trim the name at this point
-    clean_name = user_name.strip()
-
-    __dbCursor.execute(get_santainfo_query,{'username': clean_name, 'gameid':game_id })
+    __dbCursor.execute(get_santainfo_query,{'userid': user_id, 'gameid':game_code })
     return __dbCursor.fetchall()
 
-def get_user_ideas(user_name:str,game_id:int):
+def get_user_ideas(user_id:int,game_code:str):
     """ Gets the ideas assigned to a user
     """
 
-    if len(user_name) == 0:
-        raise ValueError("Name is empty.")
-    if game_id < 1:
-        raise ValueError("Game id is empty")
+    if len(game_code) == 0:
+        raise ValueError("Game code is empty.")
     
     get_idea_query = """
     SELECT idea FROM {ideas} 
-    INNER JOIN {users} ON {ideas}.userid = {users}.id
-    WHERE TRIM(from {users}.name) = %(username)s AND {users}.game = %(gameid)s;
-    """.format(users=true_tablename('users'),ideas=true_tablename('ideas'))
-    
-    # we should trim the name at this point
-    clean_name = user_name.strip()
+        INNER JOIN {users} ON {ideas}.userid = {users}.id
+        INNER JOIN {games} ON {users}.game = {games}.id
+    WHERE {users}.account_id = %(userid)s AND {games}.code = %(gameid)s;
+    """.format(users=true_tablename('users'),ideas=true_tablename('ideas'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_idea_query,{'username': clean_name, 'gameid': game_id })
+    __dbCursor.execute(get_idea_query,{'userid': user_id, 'gameid': game_code })
     return __dbCursor.fetchall()
 
 def set_user_santa(user_id:str,santa_id:str,game_code:str,sessionid:str,sessionpassword:str):
