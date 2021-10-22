@@ -3,33 +3,44 @@
 
 import traceback
 
-class AuthorizationError(Exception):
+class PublicError(Exception):
+    """
+    Class used to indicate that the exception message is ok for public display. Ie error is a nice message.
+    """
+
+class PrivateError(Exception):
+    """
+    Class used to indicate that the exception message is not ok for public display. These are internal state errors or
+    errors that might contain stack traces.
+    """
+
+class AuthorizationError(PublicError):
     pass
 
-class ConfigurationError(Exception):
+class ConfigurationError(PrivateError):
     """ Used to indicated errors due to the current
     configuration of the application.
     """
     pass
 
-class GameStateError(Exception):
+class GameStateError(PrivateError):
     """
     Indicates issues with the current state of a 
     game.
     """
     pass
 
-class GameChangeStateError(Exception):
+class GameChangeStateError(PublicError):
     """
     Indicates error when changing the state of a game.
     """
 
-class SessionError(Exception):
+class SessionError(PublicError):
     """
     Errors for Session management.
     """
 
-class NotFound(Exception):
+class NotFound(PublicError):
     pass
 
 def exception_as_string(exception) -> str:
