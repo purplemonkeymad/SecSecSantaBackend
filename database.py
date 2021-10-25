@@ -293,7 +293,6 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
             'userid':user['id'],
         })
         return cursor.fetchall()
-        raise FileExistsError("Name already registered.")
 
 #######################
 # *idea*
@@ -330,7 +329,7 @@ def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
         })
         result = cursor.fetchall()
         if len(result) == 0:
-            raise FileNotFoundError("Game not found.")
+            raise SantaErrors.NotFound("Group not found.")
         return result
 
 def set_idea_user(idea_id:str,user_id:str,game_code:str,sessionid:str,sessionpassword:str):
@@ -342,7 +341,7 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,sessionid:str,sessionpas
     owner = __authenticate_user(sessionid,sessionpassword)
 
     if (len(game_code) == 0):
-        raise ValueError("Gameid is empty.")
+        raise SantaErrors.EmptyValue("Group id is empty.")
 
     update_query = """
     WITH gameinfo AS (
@@ -365,10 +364,10 @@ def set_idea_user(idea_id:str,user_id:str,game_code:str,sessionid:str,sessionpas
             'ideaid':idea_id,
         })
         if cursor.rowcount == 0:
-            raise FileNotFoundError("Unable to update idea assignment, one or more keys were wrong.")
+            raise SantaErrors.DatabaseChangeError("Unable to update idea assignment, one or more keys were wrong.")
         elif not cursor.rowcount == 1:
             __dbConn.rollback()
-            raise RuntimeError("Database attempted to make multiple changes to single item action.")
+            raise SantaErrors.DatabaseChangeError("Database attempted to make multiple changes to single item action.")
         else:
             # exactly one
             __dbConn.commit()
@@ -413,7 +412,7 @@ def get_users_in_game(code:str,sessionid:str,sessionpassword:str):
     user = __authenticate_user(sessionid,sessionpassword)
 
     if (len(code) == 0):
-        raise ValueError("Gameid is empty.")
+        raise SantaErrors.EmptyValue("Group id is empty.")
 
     get_userlist_query = """
     SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.ownerid = %(userid)s;
@@ -431,7 +430,7 @@ def set_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     user = __authenticate_user(sessionid,sessionpassword)
 
     if (len(code) == 0):
-        raise ValueError("Gameid is empty.")
+        raise SantaErrors.EmptyValue("Group id is empty.")
     
     query = """
     UPDATE {games} SET state = %(state)s 
@@ -446,7 +445,7 @@ def set_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
         })
         result = cursor.fetchall()
         if len(result) == 0:
-            raise FileNotFoundError("Game not found.")
+            raise SantaErrors.NotFound("Group not found.")
         return result
 
 ###########################################

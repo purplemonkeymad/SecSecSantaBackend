@@ -86,17 +86,14 @@ def game():
             return json_error("A required Key is missing {}".format(missing_keys))
 
         try:
-            try:
-                santalogic.update_game_state(post_data['code'],post_data['session'],post_data['secret'],post_data['state'])
-                return json_ok({})
-            except SantaErrors.GameChangeStateError as e:
-                return json_error(str(e))
-            except SantaErrors.GameStateError as e:
-                return json_error("Internal State Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
-            except Exception as e:
-                return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
+            santalogic.update_game_state(post_data['code'],post_data['session'],post_data['secret'],post_data['state'])
+            return json_ok({})
+        except SantaErrors.PublicError as e:
+            return json_error(str(e))
+        except SantaErrors.PrivateError as e:
+            return json_error("Internal Error","Game State issue: {game} , {exception}".format(exception=str(e),game=post_data['code']))
         except Exception as e:
-            return json_error("Internal Error","Internal error on game: {}".format(exception_as_string(e)))
+            return json_error("Internal Error","Internal error on state change {}".format(exception_as_string(e)))
     
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
@@ -129,7 +126,7 @@ def game_sum():
                 return json_error("Not found, or bad secret.")
             
             return json_ok(results[0])
-        except SantaErrors.SessionError as e:
+        except SantaErrors.PublicError as e:
             return json_error("Failed to get game: {}".format(str(e)))
         except Exception as e:
             return json_error("failed to get game","Error getting game: {}".format(exception_as_string(e)))
@@ -213,9 +210,7 @@ def join_game():
             if len(result) == 0:
                 return json_error("Internal Error","Join Error: No results from join function")
             return json_ok (result)
-        except FileExistsError as e:
-            return json_error("{}".format(str(e)))
-        except SantaErrors.NotFound as e:
+        except SantaErrors.PublicError as e:
             return json_error("{}".format(str(e)))
         except Exception as e:
             return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
@@ -242,7 +237,7 @@ def results():
 
         result = santalogic.get_game_results(post_data['code'],post_data['session'],post_data['secret'])
         return json_ok( result )
-    except SantaErrors.GameStateError as e:
+    except SantaErrors.PublicError as e:
         return json_error(str(e))
     except Exception as e:
         return json_error("Internal Error","Internal Error {}".format(exception_as_string(e)))
@@ -274,9 +269,11 @@ def list_user():
             flat_list = [user['name'] for user in user_list]           
             return json_ok({'users': flat_list})
         except Exception as e:
-            return json_error("Unable to retrive user list.")
+            return json_error("Unable to retrive user list.","List user error: {}".format(exception_as_string(e)))
+    except SantaErrors.PublicError as e:
+        return json_error("Unable to create new group: {}".format(str(e)))
     except Exception as e:
-        return json_error("Internal Error")
+        return json_error("Internal Error","List user error: {}".format(exception_as_string(e)))
 
 # create a new group/game
 # POST
@@ -302,10 +299,14 @@ def new():
                     return json_error("No game returned")
                 else:
                     return json_ok( game_sig )
+            except SantaErrors.PublicError as e:
+                return json_error("Unable to create new group: {}".format(str(e)))
             except Exception as e:
                 return json_error( "Unable to generate unique game, please try again.",internal_message="New Failed: {}".format(exception_as_string(e)))
         else:
             json_error( "Game name must not be empty." )
+    except SantaErrors.PublicError as e:
+        return json_error("Unable to create new group: {}".format(str(e)))
     except Exception as e:
         return json_error("An Internal error occurred",internal_message="Uncaught Exception: {}".format(exception_as_string(e)))
 
@@ -343,6 +344,8 @@ def get_games():
             else:
                 gamelist = database.get_all_games(post_data['admin_key'])
             return json_ok({'gamelist':gamelist})
+    except SantaErrors.PublicError as e:
+        return json_error("Unable to get game list: {}".format(str(e)))
     except Exception as e:
         return json_error("",internal_message="Get_Games Error: {}".format(str(e)))
 
@@ -419,7 +422,7 @@ def auth_register():
             if len(result) == 0:
                 return json_error("Unable to register.",internal_message="Registration Failure: no results from function.")
             return json_ok(result)
-        except SantaErrors.SessionError as e:
+        except SantaErrors.PublicError as e:
             return json_error("Unable to register {}".format(str(e)))
         except Exception as e:
             return json_error("Unable to register, internal error.","Registration Error: {}".format(exception_as_string(e)))
@@ -451,7 +454,7 @@ def auth_new_session():
             if len(result) == 0:
                 return json_error("Unable to sign-in.",internal_message="New Session Failure: no results from function.")
             return json_ok(result)
-        except SantaErrors.SessionError as e:
+        except SantaErrors.PublicError as e:
             return json_error("Unable to sign-in {}".format(str(e)))
         except Exception as e:
             return json_error("unable to sign-in, internal error.","New Session Failure: {}".format(exception_as_string(e)))
@@ -485,7 +488,7 @@ def verify_session():
                 return json_error("Unable to Verify","Verify Error: Empty data from logic function call.")
             
             return json_ok(result)
-        except SantaErrors.SessionError as e:
+        except SantaErrors.PublicError as e:
             return json_error("Unable to Verify: {}".format(str(e)))
         except Exception as e:
             return json_error("Internal Error",internal_message="Verify Error: {}".format(exception_as_string(e)))

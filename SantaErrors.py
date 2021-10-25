@@ -3,34 +3,83 @@
 
 import traceback
 
-class AuthorizationError(Exception):
-    pass
+class PublicError(Exception):
+    """
+    Class used to indicate that the exception message is ok for public display. Ie error is a nice message.
+    """
 
-class ConfigurationError(Exception):
-    """ Used to indicated errors due to the current
+class PrivateError(Exception):
+    """
+    Class used to indicate that the exception message is not ok for public display. These are internal state errors or
+    errors that might contain stack traces.
+    """
+
+class AuthorizationError(PublicError):
+    """
+    Public error
+    
+    Used for permission issues.
+    """
+
+class ConfigurationError(PrivateError):
+    """ 
+    Private Error
+    
+    Used to indicated errors due to the current
     configuration of the application.
     """
     pass
 
-class GameStateError(Exception):
+class GameStateError(PrivateError):
     """
+    Private Error
+
     Indicates issues with the current state of a 
     game.
     """
     pass
 
-class GameChangeStateError(Exception):
+class GameChangeStateError(PublicError):
     """
+    Public Error
+
     Indicates error when changing the state of a game.
     """
 
-class SessionError(Exception):
+class SessionError(PublicError):
     """
+    Public Error
+
     Errors for Session management.
     """
 
-class NotFound(Exception):
-    pass
+class NotFound(PublicError):
+    """
+    Public Error
+
+    A generic not found class for public messages about missing objects, i.e. bad group ids etc.
+    """
+
+class EmptyValue(PublicError):
+    """
+    Public Error
+
+    Indicates that something was passed a null or empty value where a value was required.
+    """
+
+class Exists(PublicError):
+    """
+    Public Error
+    
+    Indicates that there is a conflict or something already exists.
+    """
+
+class DatabaseChangeError(PrivateError):
+    """
+    Private Error
+
+    Bad results or bad info from a database call.
+    """
 
 def exception_as_string(exception) -> str:
     return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
