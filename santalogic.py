@@ -39,7 +39,7 @@ def create_pubkey():
         newkey = __new_password(length=8)
         failcounts = failcounts - 1
     if failcounts == 0:
-        raise TimeoutError("Unable to create a new ID")
+        raise SantaErrors.Exists("Unable to create a new ID")
     return newkey
 
 def create_privkey():
@@ -64,17 +64,14 @@ def get_game(code):
     """ provides a safe way to get a game, with errors thrown for common issues.
     """
     if not code:
-        raise Exception('Property code is missing or empty.')
+        raise SantaErrors.EmptyValue('Property code is missing or empty.')
     
-    try:
-        game_list =  database.get_game({'code':code},properties=['name','state','id'])
-    except Exception as e:
-        print("get_game error, {}".format(e))
-        raise Exception("Error fetching games")
-    else:
-        if len(game_list) == 0:
-            raise Exception("Not Found")
-        return game_list[0]
+    game_list =  database.get_game({'code':code},properties=['name','state','id'])
+    if len(game_list) == 0:
+        raise SantaErrors.NotFound("Group id was Not Found.")
+    if isinstance(game_list,list):
+        game_list = game_list[0]
+    return game_list
 
 def update_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     """
@@ -184,7 +181,7 @@ def get_game_sum(code:str,sessionid:str,sessionpassword:str):
     """
 
     if (len(code) == 0):
-        raise ValueError("Gameid is empty.")
+        raise SantaErrors.EmptyValue("Group code is empty.")
 
     result = database.get_game_sum(code,sessionid,sessionpassword)
     return result
@@ -195,7 +192,7 @@ def get_game_results(code:str,sessionid:str,sessionpassword:str):
     """
 
     if (len(code) == 0):
-        raise ValueError("Gameid is empty.")
+        raise SantaErrors.EmptyValue("Group code is empty.")
     
     game = database.get_game({'code':code},['state'])
     if isinstance(game,list):

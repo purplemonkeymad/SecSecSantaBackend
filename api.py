@@ -210,8 +210,6 @@ def join_game():
             if len(result) == 0:
                 return json_error("Internal Error","Join Error: No results from join function")
             return json_ok (result)
-        except FileExistsError as e:
-            return json_error("{}".format(str(e)))
         except SantaErrors.PublicError as e:
             return json_error("{}".format(str(e)))
         except Exception as e:

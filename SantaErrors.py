@@ -60,5 +60,26 @@ class NotFound(PublicError):
     A generic not found class for public messages about missing objects, i.e. bad group ids etc.
     """
 
+class EmptyValue(PublicError):
+    """
+    Public Error
+
+    Indicates that something was passed a null or empty value where a value was required.
+    """
+
+class Exists(PublicError):
+    """
+    Public Error
+    
+    Indicates that there is a conflict or something already exists.
+    """
+
+class DatabaseChangeError(PrivateError):
+    """
+    Private Error
+
+    Bad results or bad info from a database call.
+    """
+
 def exception_as_string(exception) -> str:
     return traceback.format_exception(etype=type(exception), value=exception, tb=exception.__traceback__)
