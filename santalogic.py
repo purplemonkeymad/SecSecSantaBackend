@@ -294,3 +294,20 @@ def verify_session(sessionid:str,code:str,new_secret:str):
         'session':results['id'],
     }
     
+def remove_session(sessionid:str, secret:str):
+    """
+    log out of a single session
+    """
+
+    try:
+        uuid.UUID(sessionid)
+    except ValueError as e:
+        raise SantaErrors.SessionError("Session ids must be a uuid format")
+    results = database.remove_session(sessionid,secret)
+    if len(results) == 0:
+        raise SantaErrors.SessionError("Session id or verify code was not found.")
+    if isinstance(results,list):
+        results = results[0]
+    return {
+        'session':results['id'],
+    }

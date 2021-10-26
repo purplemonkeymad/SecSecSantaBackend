@@ -615,7 +615,21 @@ def confirm_session(uuid:str, verify_code:str, new_secret:str):
         cursor.execute(update_verify_date,{'ident':session_data['identity_id']})
         return session_data
         
+def remove_session(uuid:str, secret:str):
+    """
+    Log out a session by removing it from the db.
+    """
+    # only authed users can logout!
+    __authenticate_user(uuid,secret)
 
+    remove_session_query = """
+    DELETE FROM {session}
+    WHERE id = %(uuid)s AND secret_hash = crypt(%(password)s,secret_hash)
+    RETURNING id;
+    """.format(session=true_tablename('sessions'))
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(remove_session_query,{'uuid':uuid,'password':secret})
+        return cursor.fetchall()
 
 def register_user(email:str,name:str):
     """

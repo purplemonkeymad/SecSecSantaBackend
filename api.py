@@ -444,7 +444,7 @@ def auth_new_session():
         required_keys = ['email']
         missing_keys = [x for x in required_keys if x not in post_data]
         if (len(missing_keys) > 0):
-            return json_error("","A required Key is missing {}".format(missing_keys))
+            return json_error("A required Key is missing {}".format(missing_keys))
         
         # try registration
         try:
@@ -460,6 +460,40 @@ def auth_new_session():
             return json_error("unable to sign-in, internal error.","New Session Failure: {}".format(exception_as_string(e)))
     except Exception as e:
         return json_error("Internal Error",internal_message="New Session Error: {}".format(exception_as_string(e)))
+
+# log out from a session
+
+@app.route('/auth/end_session',methods=['POST'])
+def end_session():
+    """
+    API endpoint for ending a session.
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except Exception as e:
+            return json_error("Post Data malformed.")
+        # check we have required keys
+        required_keys = ['session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        
+        # try verify
+        try:
+            trim_session = post_data['session'].strip()
+
+            result = santalogic.remove_session(trim_session,post_data['secret'])
+            if len(result) == 0:
+                return json_error("Unable to Logout","Logout Error: Empty data from logic function call.")
+            
+            return json_ok(result)
+        except SantaErrors.PublicError as e:
+            return json_error("Unable to Logout: {}".format(str(e)))
+        except Exception as e:
+            return json_error("Internal Error",internal_message="Logout Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error",internal_message="Logout Error: {}".format(exception_as_string(e)))
     
 # email confirm + store local secret
 @app.route('/auth/verify_session',methods=['POST'])
@@ -476,7 +510,7 @@ def verify_session():
         required_keys = ['session','code','secret']
         missing_keys = [x for x in required_keys if x not in post_data]
         if (len(missing_keys) > 0):
-            return json_error("","A required Key is missing {}".format(missing_keys))
+            return json_error("A required Key is missing {}".format(missing_keys))
         
         # try verify
         try:
