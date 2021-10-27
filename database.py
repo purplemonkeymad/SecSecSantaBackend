@@ -27,7 +27,6 @@ urllib.parse.uses_netloc.append('postgres')
 if "DATABASE_URL" in os.environ:
     __dburl = urllib.parse.urlparse(os.environ['DATABASE_URL'])
     __dbConn = psycopg2.connect( database=__dburl.path[1:], user=__dburl.username, password=__dburl.password, host=__dburl.hostname, port=__dburl.port)
-    __dbCursor = __dbConn.cursor(cursor_factory=RealDictCursor)
 else:
     print("DATABASE_URL not set any database connections will fail!")
 
@@ -115,8 +114,9 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
 
     query_keys = ' AND '.join( [ " {key} = %({key})s ".format(key=k) for k in column_query.keys() ] )
     user_query = "SELECT {props} FROM {table} WHERE {query_string};".format(table=true_tablename(table_name),props=__stringlist_to_sql_columns(columns_to_get),query_string=query_keys)
-    __dbCursor.execute(user_query,column_query)
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(user_query,column_query)
+        return __dbCursor.fetchall()
 
 #######################
 # external funcs
@@ -148,8 +148,9 @@ def get_user_giftee(user_id:int,game_code:str):
     WHERE santa.account_id = %(userid)s AND game.code = %(gameid)s;
     """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_santainfo_query,{'userid': user_id, 'gameid':game_code })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(get_santainfo_query,{'userid': user_id, 'gameid':game_code })
+        return __dbCursor.fetchall()
 
 def get_user_ideas(user_id:int,game_code:str):
     """ Gets the ideas assigned to a user
@@ -165,8 +166,9 @@ def get_user_ideas(user_id:int,game_code:str):
     WHERE {users}.account_id = %(userid)s AND {games}.code = %(gameid)s;
     """.format(users=true_tablename('users'),ideas=true_tablename('ideas'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_idea_query,{'userid': user_id, 'gameid': game_code })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(get_idea_query,{'userid': user_id, 'gameid': game_code })
+        return __dbCursor.fetchall()
 
 def set_user_santa(user_id:str,santa_id:str,game_code:str,sessionid:str,sessionpassword:str):
     """
@@ -241,11 +243,12 @@ def get_game_ideas(pubkey:str,sessionid:str,sessionpassword:str):
     AND {games}.ownerid = %(userid)s;
     """.format(games=true_tablename('games'),ideas=true_tablename('ideas'))
 
-    __dbCursor.execute(get_idea_query,{
-        'code': pubkey,
-        'userid': user['id']
-    })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(get_idea_query,{
+            'code': pubkey,
+            'userid': user['id']
+        })
+        return __dbCursor.fetchall()
 
 def new_game(name:str,pubkey:str,sessionid:str,sessionpassword:str):
     """ Inserts a new game into the database.
@@ -314,10 +317,11 @@ def list_user_games(sessionid:str,sessionpassword:str):
     WHERE users.account_id = %(userid)s AND games.state IN (0,1);
     """.format(games=true_tablename('games'),users=true_tablename('users'))
 
-    __dbCursor.execute(list_query,{
-        'userid':user['id'],
-    })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(list_query,{
+            'userid':user['id'],
+        })
+        return __dbCursor.fetchall()
 
 def list_owned_games(sessionid:str,sessionpassword:str):
     """
@@ -333,10 +337,11 @@ def list_owned_games(sessionid:str,sessionpassword:str):
     Where games.ownerid = %(userid)s;
     """.format(games=true_tablename('games'))
 
-    __dbCursor.execute(list_query,{
-        'userid':user['id'],
-    })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(list_query,{
+            'userid':user['id'],
+        })
+        return __dbCursor.fetchall()
 
 
 #######################
@@ -443,11 +448,12 @@ def get_game_sum(code:str,sessionid:str,sessionpassword:str):
     WHERE {games}.ownerid = %(userid)s AND {games}.code = %(code)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'),ideas=true_tablename('ideas'))
 
-    __dbCursor.execute(get_summary_query,{
-        'code':code,
-        'userid':user['id'],
-    })
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(get_summary_query,{
+            'code':code,
+            'userid':user['id'],
+        })
+        return __dbCursor.fetchall()
 
 def get_users_in_game(code:str,sessionid:str,sessionpassword:str):
     """List of users that have joined a game
@@ -463,8 +469,9 @@ def get_users_in_game(code:str,sessionid:str,sessionpassword:str):
     SELECT {users}.id,game,{users}.name FROM {users} INNER JOIN {games} ON {games}.id = {users}.game WHERE {games}.code = %(code)s AND {games}.ownerid = %(userid)s;
     """.format(users=true_tablename('users'),games=true_tablename('games'))
 
-    __dbCursor.execute(get_userlist_query,{'code':code,'userid':user['id']})
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(get_userlist_query,{'code':code,'userid':user['id']})
+        return __dbCursor.fetchall()
 
 def set_game_state(code:str,sessionid:str,sessionpassword:str,new_state:int):
     """
@@ -502,29 +509,33 @@ def get_all_games(admin_key:str):
     __assert_admin_key(admin_key)
     properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table};".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
-    __dbCursor.execute(user_query,{})
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(user_query,{})
+        return __dbCursor.fetchall()
 
 def get_all_open_games(admin_key:str):
     __assert_admin_key(admin_key)
     properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 0;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
-    __dbCursor.execute(user_query,{})
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(user_query,{})
+        return __dbCursor.fetchall()
 
 def get_all_complete_games(admin_key:str):
     __assert_admin_key(admin_key)
     properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 1;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
-    __dbCursor.execute(user_query,{})
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(user_query,{})
+        return __dbCursor.fetchall()
 
 def get_all_closed_games(admin_key:str):
     __assert_admin_key(admin_key)
     properties = ['id','name','code','state','ownerid']
     user_query = "SELECT {props} FROM {table} WHERE state = 2;".format(table=true_tablename('games'),props=__stringlist_to_sql_columns(properties))
-    __dbCursor.execute(user_query,{})
-    return __dbCursor.fetchall()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as __dbCursor:
+        __dbCursor.execute(user_query,{})
+        return __dbCursor.fetchall()
 
 def reset_all_tables(admin_key:str):
     __assert_admin_key(admin_key)
