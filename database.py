@@ -294,6 +294,47 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         })
         return cursor.fetchall()
 
+def list_user_games(sessionid:str,sessionpassword:str):
+    """
+    Allows a user to get the list of joined groups
+    """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    list_query = """
+    SELECT games.name,games.code,games.state,users.name as joinname
+    FROM {games} as games
+        INNER JOIN {users} as users
+        ON games.id = users.game
+    WHERE users.account_id = %(userid)s;
+    """.format(games=true_tablename('games'),users=true_tablename('users'))
+
+    __dbCursor.execute(list_query,{
+        'userid':user['id'],
+    })
+    return __dbCursor.fetchall()
+
+def list_owned_games(sessionid:str,sessionpassword:str):
+    """
+    get a list of groups owned by the user.
+    """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    list_query = """
+    SELECT name,code,state 
+    FROM {games} as games
+    Where games.ownerid = %(userid)s;
+    """.format(games=true_tablename('games'))
+
+    __dbCursor.execute(list_query,{
+        'userid':user['id'],
+    })
+    return __dbCursor.fetchall()
+
+
 #######################
 # *idea*
 #######################

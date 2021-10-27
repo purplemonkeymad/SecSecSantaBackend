@@ -98,6 +98,69 @@ def game():
     # we shouldn't get here, but return a message just incase we do
     return json_error("No sure what to do")
 
+#/game/joined
+# get a list of groups that a user is a member of
+# POST /game/joined
+#    {session:<sessionid>, secret: <sessionsecret>}
+@app.route('/game/joined', methods=['POST'])
+def list_joined_games():
+    """
+    API function for getting joined games list.
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        try:
+            result = database.list_user_games(post_data['session'],post_data['secret'])
+            if len(result) == 0:
+                return json_error("Internal Error","Join Error: No results from join function")
+            return json_ok({'grouplist': result})
+        except SantaErrors.PublicError as e:
+            return json_error("{}".format(str(e)))
+        except Exception as e:
+            return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+
+#/game/owned
+# get a list of groups that a user is a owner of
+# POST /game/owned
+#    {session:<sessionid>, secret: <sessionsecret>}
+
+@app.route('/game/owned', methods=['POST'])
+def list_owned_games():
+    """
+    API function for getting owned games list.
+    """
+    try:
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+        try:
+            result = database.list_owned_games(post_data['session'],post_data['secret'])
+            if len(result) == 0:
+                return json_error("Internal Error","Join Error: No results from join function")
+            return json_ok({'grouplist': result})
+        except SantaErrors.PublicError as e:
+            return json_error("{}".format(str(e)))
+        except Exception as e:
+            return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+    except Exception as e:
+        return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+
 # /game_sum  :
 # retrive a summary of the game if you are the owner.
 # POST /game_sum
