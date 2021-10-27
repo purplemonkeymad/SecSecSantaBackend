@@ -269,7 +269,7 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         Insert Into {users}(game,name,account_id)
         Select {games}.id,%(name)s,%(userid)s
         From {games}
-        WHERE {games}.code = %(code)s
+        WHERE {games}.code = %(code)s AND state IN (0)
         On Conflict("game","account_id") Do Nothing
         Returning {users}.id,{users}.name,{users}.game,{users}.account_id,'New'::text AS Status
     )
@@ -278,7 +278,7 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         Select {users}.id,{users}.name,{users}.game,{users}.account_id,'Existing'::text As Status
         From {users}
         INNER Join {games} On {games}.id = {users}.game
-        Where {games}.code = %(code)s And {users}.account_id = %(userid)s;
+        Where {games}.code = %(code)s AND state IN (0) And {users}.account_id = %(userid)s;
     """.format(games=true_tablename('games'),users=true_tablename('users'))
     
     # we should trim the name at this point
