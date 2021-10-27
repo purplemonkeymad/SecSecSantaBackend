@@ -705,10 +705,11 @@ def __authenticate_user(sessionid:str,sessionpassword:str):
         ON {session}.identity_id = {identity}.id
         WHERE {session}.id = %(uuid)s AND secret_hash = crypt(%(password)s,secret_hash)
     """.format(identity=true_tablename('identities'),session=true_tablename('sessions'))
-    __dbCursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
-    if __dbCursor.rowcount == 0:
-        raise SantaErrors.SessionError("Session not found or wrong password.")
-    return __dbCursor.fetchone()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
+        if cursor.rowcount == 0:
+            raise SantaErrors.SessionError("Session not found or wrong password.")
+        return cursor.fetchone()
     
 def get_authenticated_user(sessionid:str,sessionpassword:str):
     """

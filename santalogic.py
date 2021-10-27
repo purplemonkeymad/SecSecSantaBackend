@@ -226,6 +226,36 @@ def get_game_results(code:str,sessionid:str,sessionpassword:str):
     raise SantaErrors.GameStateError("Unknown game state.")
 
 
+def list_user_games(sessionid:str,secret:str):
+    """
+    List games joined by user.
+    """
+
+    try:
+        uuid.UUID(sessionid)
+    except ValueError as e:
+        raise SantaErrors.SessionError("Session ids must be a uuid format")
+
+    results = database.list_user_games(sessionid,secret)
+    return {
+        'grouplist':results,
+    }
+
+def list_owned_games(sessionid:str,secret:str):
+    """
+    List games joined by user.
+    """
+
+    try:
+        uuid.UUID(sessionid)
+    except ValueError as e:
+        raise SantaErrors.SessionError("Session ids must be a uuid format")
+
+    results = database.list_owned_games(sessionid,secret)
+    return {
+        'grouplist':results,
+    }
+
 #####################
 # login logic
 #####################

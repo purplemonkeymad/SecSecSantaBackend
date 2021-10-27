@@ -118,16 +118,14 @@ def list_joined_games():
         if (len(missing_keys) > 0):
             return json_error("A required Key is missing {}".format(missing_keys))
         try:
-            result = database.list_user_games(post_data['session'],post_data['secret'])
-            if len(result) == 0:
-                return json_error("Internal Error","Join Error: No results from join function")
-            return json_ok({'grouplist': result})
+            result = santalogic.list_user_games(post_data['session'],post_data['secret'])
+            return json_ok(result)
         except SantaErrors.PublicError as e:
             return json_error("{}".format(str(e)))
         except Exception as e:
-            return json_error("Internal error occurred","Register Error: {}".format(exception_as_string(e)))
+            return json_error("Internal error occurred","joined Error: {}".format(exception_as_string(e)))
     except Exception as e:
-        return json_error("Internal Error Has Occurred.","Internal Error: {}".format(exception_as_string(e)))
+        return json_error("Internal Error Has Occurred.","joined Error: {}".format(exception_as_string(e)))
 
 #/game/owned
 # get a list of groups that a user is a owner of
@@ -150,10 +148,8 @@ def list_owned_games():
         if (len(missing_keys) > 0):
             return json_error("A required Key is missing {}".format(missing_keys))
         try:
-            result = database.list_owned_games(post_data['session'],post_data['secret'])
-            if len(result) == 0:
-                return json_error("Internal Error","Join Error: No results from join function")
-            return json_ok({'grouplist': result})
+            result = santalogic.list_owned_games(post_data['session'],post_data['secret'])
+            return json_ok(result)
         except SantaErrors.PublicError as e:
             return json_error("{}".format(str(e)))
         except Exception as e:
