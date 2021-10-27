@@ -307,7 +307,7 @@ def list_user_games(sessionid:str,sessionpassword:str):
     FROM {games} as games
         INNER JOIN {users} as users
         ON games.id = users.game
-    WHERE users.account_id = %(userid)s;
+    WHERE users.account_id = %(userid)s AND games.state IN (0,1);
     """.format(games=true_tablename('games'),users=true_tablename('users'))
 
     __dbCursor.execute(list_query,{
