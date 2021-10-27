@@ -272,13 +272,17 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         WHERE {games}.code = %(code)s AND state IN (0)
         On Conflict("game","account_id") Do Nothing
         Returning {users}.id,{users}.name,{users}.game,{users}.account_id,'New'::text AS Status
+    ), s As(
+        SELECT * From r
+        Union
+            Select {users}.id,{users}.name,{users}.game,{users}.account_id,'Existing'::text As Status
+            From {users}
+            INNER Join {games} On {games}.id = {users}.game
+            Where {games}.code = %(code)s AND state IN (0) And {users}.account_id = %(userid)s
     )
-    SELECT * From r
-    Union
-        Select {users}.id,{users}.name,{users}.game,{users}.account_id,'Existing'::text As Status
-        From {users}
-        INNER Join {games} On {games}.id = {users}.game
-        Where {games}.code = %(code)s AND state IN (0) And {users}.account_id = %(userid)s;
+    SELECT s.*,{games}.name as gamename From s
+        Inner Join {games}
+        On {games}.id = s.game;
     """.format(games=true_tablename('games'),users=true_tablename('users'))
     
     # we should trim the name at this point

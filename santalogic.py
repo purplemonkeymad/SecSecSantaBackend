@@ -173,6 +173,7 @@ def join_game(user_name:str,code:str,sessionid:str,sessionpassword:str):
         'name':join_game['name'],
         'code':code,
         'join_status':join_game['status'],
+        'gamename':join_game['gamename'],
     }
 
 def get_game_sum(code:str,sessionid:str,sessionpassword:str):
