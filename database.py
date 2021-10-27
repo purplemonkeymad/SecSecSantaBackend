@@ -294,6 +294,47 @@ def join_game(user_name:str,pubkey:str,sessionid:str,sessionpassword:str):
         })
         return cursor.fetchall()
 
+def list_user_games(sessionid:str,sessionpassword:str):
+    """
+    Allows a user to get the list of joined groups
+    """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    list_query = """
+    SELECT games.name,games.code,games.state,users.name as joinname
+    FROM {games} as games
+        INNER JOIN {users} as users
+        ON games.id = users.game
+    WHERE users.account_id = %(userid)s AND games.state IN (0,1);
+    """.format(games=true_tablename('games'),users=true_tablename('users'))
+
+    __dbCursor.execute(list_query,{
+        'userid':user['id'],
+    })
+    return __dbCursor.fetchall()
+
+def list_owned_games(sessionid:str,sessionpassword:str):
+    """
+    get a list of groups owned by the user.
+    """
+
+    ## get logged on user details
+    user = __authenticate_user(sessionid,sessionpassword)
+
+    list_query = """
+    SELECT name,code,state 
+    FROM {games} as games
+    Where games.ownerid = %(userid)s;
+    """.format(games=true_tablename('games'))
+
+    __dbCursor.execute(list_query,{
+        'userid':user['id'],
+    })
+    return __dbCursor.fetchall()
+
+
 #######################
 # *idea*
 #######################
@@ -664,10 +705,11 @@ def __authenticate_user(sessionid:str,sessionpassword:str):
         ON {session}.identity_id = {identity}.id
         WHERE {session}.id = %(uuid)s AND secret_hash = crypt(%(password)s,secret_hash)
     """.format(identity=true_tablename('identities'),session=true_tablename('sessions'))
-    __dbCursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
-    if __dbCursor.rowcount == 0:
-        raise SantaErrors.SessionError("Session not found or wrong password.")
-    return __dbCursor.fetchone()
+    with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(get_user,{'uuid':sessionid,'password':sessionpassword})
+        if cursor.rowcount == 0:
+            raise SantaErrors.SessionError("Session not found or wrong password.")
+        return cursor.fetchone()
     
 def get_authenticated_user(sessionid:str,sessionpassword:str):
     """
