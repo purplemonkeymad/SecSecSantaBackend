@@ -90,7 +90,7 @@ def __assert_can_do_major_db_changes():
         raise SantaErrors.AuthorizationError("Table Truncation setting missing, default is disabled.")
     if len(os.environ['AllowTableTruncates']) == 0:
         raise SantaErrors.AuthorizationError("Table Truncation setting empty, default is disabled.")
-    if os.environ['AllowtableTruncates'] == 'AllowTruncates':
+    if os.environ['AllowTableTruncates'] == 'AllowTruncates':
         return 0
     raise SantaErrors.AuthorizationError("table Truncation settings is not 'AllowTruncates', value is disabled.")
 
