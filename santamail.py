@@ -68,4 +68,4 @@ def send_logon_email(email:str,display_name:str,code:str):
     Send a logon email with the verification code.
     """
 
-    send_email(email,"New Logon request for Secret Santa.",'Newlogin',name=display_name,code=code)
+    send_email(email,"New Logon request for Secret Santa.",'NewLogin',name=display_name,code=code)
