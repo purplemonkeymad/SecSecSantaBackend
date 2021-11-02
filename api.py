@@ -304,33 +304,33 @@ def results():
 # admin endpoints
 
 # get a list of users in your game
-# POST /list_user
-#   {"code":<gamecode>,"secret":<gamesecret>}
+# POST /game/listuser
+#   {"code":<gamecode>,<session credentials>}
 #
-@app.route('/list_user',methods=['POST'])
+@app.route('/game/listuser',methods=['POST'])
 def list_user():
     try:
-        post_data = request.get_json(force=True)
-        if not 'code' in post_data:
-            return json_error("Parameter 'code' is missing.")
-        get_code = post_data['code']
-        if not 'secret' in post_data:
-            return json_error("Parameter 'secret' is missing.")
-        get_secret = post_data['secret']
-        if len(get_code) == 0 or len(get_secret) == 0:
-            return json_error("Parameters 'code' and 'secret' cannot be empty.")
-        try:
-            user_list = database.get_users_in_game(get_code,get_secret,['name'])
-            if len(user_list) == 0:
-                return json_error("No results, or code or secret is wrong.")
 
-            # convert to list
-            flat_list = [user['name'] for user in user_list]           
-            return json_ok({'users': flat_list})
-        except Exception as e:
-            return json_error("Unable to retrive user list.","List user error: {}".format(exception_as_string(e)))
+        try:
+            post_data = request.get_json(force=True)
+        except:
+            return json_error("POST data was not json or malformed.")
+                # check we have required keys
+        required_keys = ['code','session','secret']
+        missing_keys = [x for x in required_keys if x not in post_data]
+        if (len(missing_keys) > 0):
+            return json_error("A required Key is missing {}".format(missing_keys))
+
+        user_list = database.get_users_in_game(post_data['code'],post_data['session'],post_data['secret'])
+        if len(user_list) == 0:
+            return json_error("No results, or not group owner.")
+
+        # convert to list
+        flat_list = [user['name'] for user in user_list]
+        return json_ok({'users': flat_list})
+
     except SantaErrors.PublicError as e:
-        return json_error("Unable to create new group: {}".format(str(e)))
+        return json_error("Unable get users: {}".format(str(e)))
     except Exception as e:
         return json_error("Internal Error","List user error: {}".format(exception_as_string(e)))
 
