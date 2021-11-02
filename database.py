@@ -118,6 +118,9 @@ def __get_simple_table(table_name:str,columns_to_get:list,column_query:dict,vali
         __dbCursor.execute(user_query,column_query)
         return __dbCursor.fetchall()
 
+def __lowercase_email(email:str):
+    return email.lower()
+
 #######################
 # external funcs
 #######################
@@ -641,7 +644,11 @@ def new_session(uuid:str, email:str, verify_code:str):
         (SELECT name FROM user_ident);
     """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(new_session_query,{'uuid':uuid,'email':email,'code':verify_code})
+        cursor.execute(new_session_query,{
+            'uuid':uuid,
+            'email': __lowercase_email(email),
+            'code':verify_code,
+            })
         return cursor.fetchall()
 
 def confirm_session(uuid:str, verify_code:str, new_secret:str):
@@ -698,7 +705,10 @@ def register_user(email:str,name:str):
     RETURNING id,email,name;
     """.format(session=true_tablename('sessions'),identity=true_tablename('identities'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(new_user,{'name':name,'email':email})
+        cursor.execute(new_user,{
+            'name':name,
+            'email':__lowercase_email(email),
+            })
         return cursor.fetchall()
 
 def get_registered_user(email:str):
