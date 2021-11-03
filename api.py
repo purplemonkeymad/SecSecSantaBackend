@@ -209,8 +209,8 @@ def idea():
             if (len(missing_keys) > 0):
                 return json_error("A required Key is missing {}".format(missing_keys))
             try:
-                database.new_idea(post_data['code'],post_data['idea'],post_data['session'],post_data['secret'])
-                return json_ok( {} )
+                idea_results = santalogic.add_idea(post_data['code'],post_data['idea'],post_data['session'],post_data['secret'])
+                return json_ok( idea_results )
             except FileNotFoundError as e:
                 return json_error(str(e))
             except Exception as e:
