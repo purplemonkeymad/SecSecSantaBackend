@@ -670,11 +670,11 @@ def new_session(uuid:str, email:str, verify_code:str):
     new_session_query = """
     WITH user_ident AS (
         SELECT id,email,name
-        FROM {identity} WHERE {identity}.email = %(email)s
+        FROM {identity} WHERE LOWER({identity}.email) = LOWER(%(email)s)
     )
     INSERT INTO {session} (id,verify_hash,secret_hash,identity_id,last_date)
         SELECT %(uuid)s,crypt(%(code)s, gen_salt('bf')),NULL,{identity}.id,NOW()
-        FROM {identity} WHERE {identity}.email = %(email)s
+        FROM {identity} WHERE LOWER({identity}.email) = LOWER(%(email)s)
     RETURNING {session}.id,{session}.last_date,
         (SELECT email FROM user_ident),
         (SELECT name FROM user_ident);
