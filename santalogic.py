@@ -257,6 +257,22 @@ def list_owned_games(sessionid:str,secret:str):
         'grouplist':results,
     }
 
+def add_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
+    """Generate a new game
+    """
+    # make sure that trailing spaces don't allow duplicates.
+    idea = idea.strip()
+
+    result = database.new_idea(pubkey,idea,sessionid,sessionpassword)
+    if isinstance(result,list):
+        result = result[0]
+    # db and api have different key names.
+    return {
+        'idea':result['idea'],
+        'gamename':result['gamename'],
+        'ideastatus':result['status'],
+        }
+
 #####################
 # login logic
 #####################

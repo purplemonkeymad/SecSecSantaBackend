@@ -365,20 +365,34 @@ def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
     ## get logged on user details
     user = __authenticate_user(sessionid,sessionpassword)
 
-    query = """
-        INSERT into {ideas}(game,idea) 
-        SELECT {games}.id,%(idea)s 
-        FROM {games} 
-        WHERE {games}.code=%(code)s and 
-        exists(
-            SELECT id FROM {games} WHERE {games}.code=%(code)s
-        )
-        RETURNING {ideas}.id,{ideas}.idea,{ideas}.game;
+    unique_idea_query ="""
+    WITH r As(
+        -- insert query
+        Insert Into {ideas}(game,idea,account_id)
+        Select {games}.id,%(idea)s,%(userid)s
+        From {games}
+        WHERE {games}.code = %(code)s AND state IN (0)
+        On Conflict("game","idea","account_id") Do Nothing
+        Returning {ideas}.id,{ideas}.idea,{ideas}.game,{ideas}.account_id,'New'::text AS Status
+    ), s As(
+        -- union here will get existing records, if the row existed then r is empty and we fill with exiting data.
+        SELECT * From r
+        Union
+            Select {ideas}.id,{ideas}.idea,{ideas}.game,{ideas}.account_id,'Existing'::text As Status
+            From {ideas}
+            INNER Join {games} On {games}.id = {ideas}.game
+            Where {games}.code = %(code)s AND state IN (0) And {ideas}.account_id = %(userid)s And {ideas}.idea = %(idea)s
+    )
+    -- join whatever result we just got with the games take to return the name, not the game internal id.
+    SELECT s.*,{games}.name as gamename From s
+        Inner Join {games}
+        On {games}.id = s.game;
     """.format(ideas=true_tablename('ideas'),games=true_tablename('games'))
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(query,{
+        cursor.execute(unique_idea_query,{
             'idea':idea,
             'code':pubkey,
+            'userid':user['id'],
         })
         result = cursor.fetchall()
         if len(result) == 0:
@@ -614,7 +628,29 @@ def init_tables(admin_key:str):
             end if;
         end $$;
         """.format(users=true_tablename('users'),identity=true_tablename('identities')),
-        "create unique index if not exists {users}_game_account on {users} using btree (game,account_id);".format(users=true_tablename('users'))
+        "create unique index if not exists {users}_game_account on {users} using btree (game,account_id);".format(users=true_tablename('users')),
+        ## upgrade ideas to include submitter so that duplication can be detected.
+            #add column
+        """
+        ALTER TABLE {ideas}
+        Add Column If Not Exists account_id int default null;
+        """.format(ideas=true_tablename('ideas'),identity=true_tablename('identities')),
+            # add constraint
+        """
+        -- no if not exists for constraints
+        DO $$
+        begin
+            if not exists (select constraint_name 
+                        from information_schema.constraint_column_usage 
+                        where table_name = '{identity}' and constraint_name = '{ideas}_account_id' ) then
+                ALTER TABLE {ideas}
+                Add Constraint {ideas}_account_id Foreign Key (account_id) References {identity} (id);
+            end if;
+        end $$;
+        """.format(ideas=true_tablename('ideas'),identity=true_tablename('identities')),
+            # add index for faster lookups
+        "create unique index if not exists {ideas}_game_account on {ideas} using btree (game,account_id,idea);".format(ideas=true_tablename('ideas')),
+
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
         for table in table_definition:
