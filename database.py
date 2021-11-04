@@ -372,7 +372,7 @@ def new_idea(pubkey:str,idea:str,sessionid:str,sessionpassword:str):
         Select {games}.id,%(idea)s,%(userid)s
         From {games}
         WHERE {games}.code = %(code)s AND state IN (0)
-        On Conflict("idea","account_id") Do Nothing
+        On Conflict("game","idea","account_id") Do Nothing
         Returning {ideas}.id,{ideas}.idea,{ideas}.game,{ideas}.account_id,'New'::text AS Status
     ), s As(
         -- union here will get existing records, if the row existed then r is empty and we fill with exiting data.
@@ -649,7 +649,7 @@ def init_tables(admin_key:str):
         end $$;
         """.format(ideas=true_tablename('ideas'),identity=true_tablename('identities')),
             # add index for faster lookups
-        "create unique index if not exists {ideas}_game_account on {ideas} using btree (account_id,idea);".format(ideas=true_tablename('ideas')),
+        "create unique index if not exists {ideas}_game_account on {ideas} using btree (game,account_id,idea);".format(ideas=true_tablename('ideas')),
 
     ]
     with __dbConn, __dbConn.cursor(cursor_factory=RealDictCursor) as cursor:
