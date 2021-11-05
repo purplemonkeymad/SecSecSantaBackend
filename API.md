@@ -111,6 +111,25 @@ Result:
 * name: Display Name of group
 * pubkey: A short code to share with people to join the group, it is also used to identify this group to other API methods.
 
+### List owned groups
+
+`/game/owned` POST
+
+List all of the groups that your account is an owner of.
+
+Required Keys:
+
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to get groups for.
+* `secret`: The stored secret first created during the verify stage.
+
+Result:
+
+* grouplist: A list of group objects. Each object will have the following properties:
+
+    * name: Display Name of the group
+    * code: Join code of this group
+    * state: Current state of the game, 0=Open,1=Resolved,2=Closed
+
 ### register a user for a game
 
 `/user` POST
