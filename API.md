@@ -10,7 +10,26 @@ All POST requests use a json body to provide parameters.
 All requests should return json. They will also return a property `status` that will indicate success. If the value is `ok` the call worked and you
 might be provided more information by other parameters. If the value is `error` you can check the property `errordetail` for an exception message.
 
-## methods
+## Login and Registration Methods
+
+### Register for account
+
+`/auth/register` POST
+
+Register for an account to login. Will automatically start the login process as well.
+A successful login is counted as verifying that the account is valid.
+
+Required Keys:
+
+* `email`: Email address to register with (use for login verification.)
+* `name`: Display Name for your account (will be used as the default join name.)
+
+Example Body: `{"email":"myname@example.com","name":"John Doe"}`
+
+Result:
+
+* session: Logon session id for this device.
+
 
 ### a new game
 
