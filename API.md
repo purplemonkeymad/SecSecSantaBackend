@@ -191,17 +191,24 @@ Result:
 * gamename: Display Name of the group that was joined.
 * join_status: Status of Joining, will be `New` if user joined as a results of this call, will be `Existing` if they were already joined.
 
-### submit an gift idea
+### Submit a gift idea
 
 `/idea` POST
 
-Body: `{"idea":"Your idea text","code": "<pubkey>"}`
+Submit a gift suggestion to the specified group.
 
-Call this endpoint to add a new gift idea to the pool of ideas for each santa.
+Required Keys:
+
+* `code`: Join code for the group that you want to retrieve summary info for.
+* `idea`: The idea that should be submitted. Max length of 260 ascii chars.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account for the action.
+* `secret`: The stored secret first created during the verify stage.
 
 Result:
 
-* None status only.
+* idea: The idea submitted
+* gamename: The name of the group the idea was added.
+* ideastatus: Status of idea addition, will be `New` if idea added as a result of this call, will be `Existing` if it already was submitted.
 
 ### do the draw
 
