@@ -86,19 +86,30 @@ Result:
 
 * session: Id of session that was logged out.
 
-### a new game
+## Group management
+
+Groups are referred to games a lot of the time within the code,
+if there is any references to a game, this is the same as a Group.
+
+### Create a new group
 
 `/new` POST
 
-Body: `{"name":"Game Display Name"}`
+Create a new group.
+Each group is a pool of people and ideas that will be drawn for the secret santa.
 
-Call this endpoint to create a new game that people can submit ideas to and join.
+Required Keys:
+
+* `name`: Display Name of the group, visible to everyone.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will become the owner of the Group.
+* `secret`: The stored secret first created during the verify stage.
+
+Example Body: `{"Name":"Example Group Name","session":"<session id>",secret=<long random letters>}`
 
 Result:
 
 * name: Display Name of group
-* privkey: A Secret key to managed the group (keep this to yourself)
-* pubkey: A short key to share with people to join the group, they use this to submit ideas, register, and to get their results.
+* pubkey: A short code to share with people to join the group, it is also used to identify this group to other API methods.
 
 ### register a user for a game
 
