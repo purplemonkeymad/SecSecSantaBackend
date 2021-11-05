@@ -16,7 +16,7 @@ might be provided more information by other parameters. If the value is `error` 
 
 `/auth/register` POST
 
-Register for an account to login. Will automatically start the login process as well.
+Register for an account to login. Will automatically start the login process as well, see the `/auth/new_session` method for more info.
 A successful login is counted as verifying that the account is valid.
 
 Required Keys:
@@ -30,6 +30,24 @@ Result:
 
 * session: Logon session id for this device.
 
+### Login to an account
+
+`/auth/new_session` POST
+
+Start the login process for a registered account.
+This only takes an email as each logon event is verified using an email send to the registered address.
+The api will provide you with a session id that will be used for any authenticated calls to api methods.
+Sessions will need to be verified before they can be used for other api methods, see the `/auth/verify` method.
+
+Required Keys:
+
+* `email`: Email address to logon to.
+
+Example Body: `{"email":"myname@example.com"}`
+
+Result:
+
+* session: Logon session id for this device.
 
 ### a new game
 
