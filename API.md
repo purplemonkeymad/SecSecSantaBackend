@@ -210,21 +210,6 @@ Result:
 * gamename: The name of the group the idea was added.
 * ideastatus: Status of idea addition, will be `New` if idea added as a result of this call, will be `Existing` if it already was submitted.
 
-### do the draw
-
-`/game` POST
-
-Body: `{"code":"<pubkey>", "secret": "<privkey>, "state": <0|1|2>}`
-
-This allows you to manage the current state of the group. The default state is `0`, this is open for registrations and ideas.
-Moving to state 1 will run the selection, at this point users can retrieve their giftees and ideas.
-Moving to state 2 will close the group and remove and ideas and users. You will have to register a new group if it is moved to state 2.
-
-All actions need the privkey that was sent as the results of calling `/new` if you don't have it you can't admin the game.
-
-Result:
-
-* state: the new state, this should be the same as the input on a successful run.
 
 ### get your results
 
