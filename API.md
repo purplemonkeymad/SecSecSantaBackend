@@ -169,17 +169,27 @@ Result:
 * code: Join code of the group.
 * state: New State of the group, 0=Open, 1=Resolved, 2=Closed.
 
-### register a user for a game
+## User Group actions
 
-`/user` POST
+### Join a Group
 
-Body: `{"name":"Someone's Name", "code": "<pubkey>"}`
+`/join_game` POST
 
-Call this endpoint to register yourself as a person in the secret santa pool. Make sure you keep your name, as it is also your retrieval key.
+Join a Group with a particular Group join code. Joining adds an account to the pool of Santas.
+
+Required Keys:
+
+* `code`: Join code for the group that you want to retrieve summary info for.
+* `name`: Display Name to join as to the group. Field is required, but an empty value will cause the group to be join using the default display name given during registration.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to join as.
+* `secret`: The stored secret first created during the verify stage.
 
 Result:
 
-* None status only.
+* name: Display Name of the user that joined.
+* code: Join code of the group that was joined.
+* gamename: Display Name of the group that was joined.
+* join_status: Status of Joining, will be `New` if user joined as a results of this call, will be `Existing` if they were already joined.
 
 ### submit an gift idea
 
