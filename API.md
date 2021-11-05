@@ -130,6 +130,25 @@ Result:
     * code: Join code of this group
     * state: Current state of the game, 0=Open,1=Resolved,2=Closed
 
+### List group summary
+
+`/game_sum` POST
+
+List a few owner privileged values about the group given.
+
+Required Keys:
+
+* `code`: Join code for the group that you want to retrieve summary info for.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to get groups for.
+* `secret`: The stored secret first created during the verify stage.
+
+Result:
+
+* name: Display Name of the requested group.
+* state: Current State of the group, 0=Open, 1=Resolved, 2=Closed.
+* santas: The current number of people joined to the group.
+* ideas: The current number of submitted gift suggestions to the group.
+
 ### register a user for a game
 
 `/user` POST
