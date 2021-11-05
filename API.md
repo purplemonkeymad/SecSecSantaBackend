@@ -69,6 +69,23 @@ Result:
 
 * session: Id of session that was just authenticated.
 
+### Logout
+
+`/auth/end_session` POST
+
+Logout and destroy the current session.
+
+Required Keys:
+
+* `session`: Session id that identifies this session (the current device.)
+* `secret`: The stored secret first created during the verify stage.
+
+Example Body: `{"session":"af2276be-839a-47e9-9c2e-11aa895936e2",secret=<long random letters>}`
+
+Result:
+
+* session: Id of session that was logged out.
+
 ### a new game
 
 `/new` POST
