@@ -248,6 +248,9 @@ Result:
 * giftee: Name of person that user should buy for.
 * ideas[]: list of ideas provided from the pool.
 
+## Public
+
+These Api methods do not required any authenticated session.
 
 ### Check a game exists
 
