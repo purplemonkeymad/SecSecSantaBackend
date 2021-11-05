@@ -191,6 +191,25 @@ Result:
 * gamename: Display Name of the group that was joined.
 * join_status: Status of Joining, will be `New` if user joined as a results of this call, will be `Existing` if they were already joined.
 
+### List joined Groups
+
+`/game/joined` POST
+
+list the groups that the current session owner has joined.
+
+Required Keys:
+
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account.
+* `secret`: The stored secret first created during the verify stage.
+
+Result:
+
+* grouplist: A list of group objects. Each object will have the following properties:
+
+    * name: Display Name of the group
+    * code: Join code of this group
+    * state: Current state of the game, 0=Open,1=Resolved,2=Closed
+
 ### Submit a gift idea
 
 `/idea` POST
