@@ -232,13 +232,19 @@ Result:
 
 ### get your results
 
-`/user?code=<pubkey>&name=<registrationName>` GET
+`/results` POST
 
-This allows register people to get their results of the draw. It will only provide results if the code matches a game that is in state `1` (has ran).
+This allows people to get their results of the draw. It will only provide results if the code matches a game that is in state `1` (Rolled).
+
+Required Keys:
+
+* `code`: Join code for the group that you want to target.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account for the action.
+* `secret`: The stored secret first created during the verify stage.
 
 Result:
 
-* name: provided user name
+* code: Group join code of the results.
 * giftee: Name of person that user should buy for.
 * ideas[]: list of ideas provided from the pool.
 
