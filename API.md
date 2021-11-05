@@ -149,6 +149,26 @@ Result:
 * santas: The current number of people joined to the group.
 * ideas: The current number of submitted gift suggestions to the group.
 
+### Roll or Close a group
+
+`/game` POST
+
+Update the status of a group.
+The available states depend on the current state.
+Open groups can be moved to Rolled or closed. Rolled groups can be moved to closed.
+
+Required Keys:
+
+* `code`: Join code for the group that you want to retrieve summary info for.
+* `state`: New state for the group to transition to, 1=Rolled, 2=Closed.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to get groups for.
+* `secret`: The stored secret first created during the verify stage.
+
+Result:
+
+* code: Join code of the group.
+* state: New State of the group, 0=Open, 1=Resolved, 2=Closed.
+
 ### register a user for a game
 
 `/user` POST
