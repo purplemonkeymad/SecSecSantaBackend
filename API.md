@@ -37,7 +37,7 @@ Result:
 Start the login process for a registered account.
 This only takes an email as each logon event is verified using an email send to the registered address.
 The api will provide you with a session id that will be used for any authenticated calls to api methods.
-Sessions will need to be verified before they can be used for other api methods, see the `/auth/verify` method.
+Sessions will need to be verified before they can be used for other api methods, see the `/auth/verify_session` method.
 
 Required Keys:
 
@@ -48,6 +48,26 @@ Example Body: `{"email":"myname@example.com"}`
 Result:
 
 * session: Logon session id for this device.
+
+### Verify a logon
+
+`/auth/verify_session` POST
+
+Verify a logon using a verify code that was sent via email.
+This also required a password that will be used to authenticate this session to the API.
+Each logon session should have a unique password, this should be stored locally on the device and does not need to be known by the account holder.
+
+Required Keys:
+
+* `session`: Session id that was provided at the beginning of the login process or at registration.
+* `code`: Verify code that was send by email for this specific session.
+* `secret`: A new random secret that this device can use to authenticate itself.
+
+Example Body: `{"session":"af2276be-839a-47e9-9c2e-11aa895936e2","code":"000000",secret=<long random letters>}`
+
+Result:
+
+* session: Id of session that was just authenticated.
 
 ### a new game
 
