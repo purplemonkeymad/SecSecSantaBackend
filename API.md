@@ -139,7 +139,7 @@ List a few owner privileged values about the group given.
 Required Keys:
 
 * `code`: Join code for the group that you want to retrieve summary info for.
-* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to get groups for.
+* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the owner of the group to get a summary for.
 * `secret`: The stored secret first created during the verify stage.
 
 Result:
@@ -159,9 +159,9 @@ Open groups can be moved to Rolled or closed. Rolled groups can be moved to clos
 
 Required Keys:
 
-* `code`: Join code for the group that you want to retrieve summary info for.
+* `code`: Join code for the group that you want to update status of.
 * `state`: New state for the group to transition to, 1=Rolled, 2=Closed.
-* `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to get groups for.
+* `session`: Session id that identifies this session (the current device.) This should be the owner of the group.
 * `secret`: The stored secret first created during the verify stage.
 
 Result:
@@ -179,7 +179,7 @@ Join a Group with a particular Group join code. Joining adds an account to the p
 
 Required Keys:
 
-* `code`: Join code for the group that you want to retrieve summary info for.
+* `code`: Join code for the group that you want to join.
 * `name`: Display Name to join as to the group. Field is required, but an empty value will cause the group to be join using the default display name given during registration.
 * `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account to join as.
 * `secret`: The stored secret first created during the verify stage.
@@ -218,7 +218,7 @@ Submit a gift suggestion to the specified group.
 
 Required Keys:
 
-* `code`: Join code for the group that you want to retrieve summary info for.
+* `code`: Join code for the group that you want to add an idea to.
 * `idea`: The idea that should be submitted. Max length of 260 ascii chars.
 * `session`: Session id that identifies this session (the current device.) The owner of this session will be used as the target account for the action.
 * `secret`: The stored secret first created during the verify stage.
