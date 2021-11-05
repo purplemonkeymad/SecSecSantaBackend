@@ -40,4 +40,6 @@ You can run this on your own Heroku by doing the following
 
 (or your rest api client of choice)
 
-If you get a status of ok, then the databases should be created. An you can point the frontend at your site or use the api as below.
+If you get a status of ok, then the databases should be created. An you can point the frontend at your site.
+
+You can also directly call changes using a rest client, check [the api info](./API.md) for methods you can use.
